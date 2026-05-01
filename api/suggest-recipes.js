@@ -2,11 +2,20 @@
 // 冷蔵庫の食材リストとチラシから読み取った特売品リストから、
 // その日いちばん安く作れるレシピを3件提案する。
 
+import { checkRateLimit } from './_ratelimit.js';
+
 const MODEL = 'claude-sonnet-4-5';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // IPベースのレート制限
+  const limited = checkRateLimit(req);
+  if (limited) {
+    res.setHeader('Retry-After', limited.retryAfter);
+    return res.status(429).json({ error: limited.error });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

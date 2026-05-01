@@ -4,14 +4,30 @@ import { COLORS } from './theme';
 import { loadList, saveList } from './lib/storage';
 import { ocrFlyer, suggestRecipes } from './lib/api';
 import { compressImage } from './lib/image';
+import {
+  getStatus,
+  consumeSearch,
+  grantRewardTicket,
+} from './lib/usage';
 import HomeView from './components/HomeView';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
 import RecipeDetail from './components/RecipeDetail';
 import SearchingScreen from './components/SearchingScreen';
+import RewardAdModal from './components/RewardAdModal';
 import { Toast } from './components/ui';
 
 const HISTORY_LIMIT = 3;
+
+// AdSense広告ユニットのスロットID。AdSense管理画面で個別ユニットを
+// 作成し、そのスロットIDをここに入れると、自動広告ではなく
+// 個別配置ができるようになる。空文字のままだと自動広告任せ。
+const AD_SLOTS = {
+  homeBanner: '',
+  searchingFullscreen: '',
+  resultsFeed: '',
+  rewardModal: '',
+};
 
 export default function App() {
   const [tab, setTab] = useState('home');
@@ -21,7 +37,15 @@ export default function App() {
   const [currentMeta, setCurrentMeta] = useState(null);
   const [recipeOpen, setRecipeOpen] = useState(null);
   const [toast, setToast] = useState(null);
-  const [searching, setSearching] = useState(null); // 'flyer' | 'fridge' | null
+  const [searching, setSearching] = useState(null);
+  const [showReward, setShowReward] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 報酬獲得後に実行する処理
+  const [quotaStatus, setQuotaStatus] = useState({
+    freeRemaining: 1,
+    rewardedTickets: 0,
+    totalRemaining: 1,
+    needsReward: false,
+  });
   const [ready, setReady] = useState(false);
 
   /* --- initial load --- */
@@ -33,6 +57,7 @@ export default function App() {
       ]);
       setFridge(f);
       setHistory(h);
+      setQuotaStatus(getStatus());
       setReady(true);
     })();
   }, []);
@@ -44,6 +69,8 @@ export default function App() {
   useEffect(() => {
     if (ready) saveList('history:searches', history);
   }, [history, ready]);
+
+  const refreshQuota = () => setQuotaStatus(getStatus());
 
   const showToast = (message, type = 'info') => setToast({ message, type });
 
@@ -63,100 +90,137 @@ export default function App() {
   const removeFridgeItem = (id) =>
     setFridge(fridge.filter((f) => f.id !== id));
 
-  /* --- record history --- */
   const recordHistory = (entry) => {
     const next = [entry, ...history].slice(0, HISTORY_LIMIT);
     setHistory(next);
   };
 
-  /* --- search from flyer --- */
-  const searchFromFlyer = async (file) => {
-    if (!file) return;
-    setSearching('flyer');
-    setCurrentRecipes([]);
-    setCurrentMeta(null);
-    try {
-      const { base64, mediaType } = await compressImage(file);
-      const flyerItems = await ocrFlyer(base64, mediaType);
-
-      if (!flyerItems.length) {
-        showToast('特売品を検出できませんでした', 'error');
-        setSearching(null);
-        return;
-      }
-
-      const fridgeNames = fridge.map((f) => f.name);
-      const recipes = await suggestRecipes(fridgeNames, flyerItems);
-
-      if (!recipes.length) {
-        showToast('作れるレシピが見つかりませんでした', 'error');
-        setSearching(null);
-        return;
-      }
-
-      const entry = {
-        id: crypto.randomUUID(),
-        searchedAt: Date.now(),
-        source: 'flyer',
-        fridgeUsed: fridgeNames,
-        flyerItems,
-        recipes,
-      };
-      recordHistory(entry);
-      setCurrentRecipes(recipes);
-      setCurrentMeta({
-        source: 'flyer',
-        flyerCount: flyerItems.length,
-        fridgeCount: fridgeNames.length,
-      });
-      showToast(`チラシから${flyerItems.length}件読取り、レシピを提案しました`);
-    } catch (e) {
-      console.error(e);
-      showToast(e.message || '検索に失敗しました', 'error');
-    } finally {
-      setSearching(null);
+  /* --- quota check + execute --- */
+  const requireQuotaAndRun = (actionFn) => {
+    const status = getStatus();
+    if (status.totalRemaining > 0) {
+      // 利用可能枠がある → 即実行
+      consumeSearch();
+      refreshQuota();
+      actionFn();
+    } else {
+      // 残枠なし → リワード広告へ誘導
+      setPendingAction(() => actionFn);
+      setShowReward(true);
     }
   };
 
+  /* --- reward ad callbacks --- */
+  const handleRewardClaim = () => {
+    grantRewardTicket();
+    refreshQuota();
+    setShowReward(false);
+    if (pendingAction) {
+      // 受け取ったチケットを即消費して実行
+      consumeSearch();
+      refreshQuota();
+      pendingAction();
+      setPendingAction(null);
+    }
+    showToast('検索1回分が追加されました', 'info');
+  };
+  const handleRewardCancel = () => {
+    setShowReward(false);
+    setPendingAction(null);
+  };
+  const handleManualWatchAd = () => {
+    setPendingAction(null);
+    setShowReward(true);
+  };
+
+  /* --- search from flyer --- */
+  const searchFromFlyer = async (file) => {
+    if (!file) return;
+    requireQuotaAndRun(async () => {
+      setSearching('flyer');
+      setCurrentRecipes([]);
+      setCurrentMeta(null);
+      try {
+        const { base64, mediaType } = await compressImage(file);
+        const flyerItems = await ocrFlyer(base64, mediaType);
+        if (!flyerItems.length) {
+          showToast('特売品を検出できませんでした', 'error');
+          setSearching(null);
+          return;
+        }
+        const fridgeNames = fridge.map((f) => f.name);
+        const recipes = await suggestRecipes(fridgeNames, flyerItems);
+        if (!recipes.length) {
+          showToast('作れるレシピが見つかりませんでした', 'error');
+          setSearching(null);
+          return;
+        }
+        const entry = {
+          id: crypto.randomUUID(),
+          searchedAt: Date.now(),
+          source: 'flyer',
+          fridgeUsed: fridgeNames,
+          flyerItems,
+          recipes,
+        };
+        recordHistory(entry);
+        setCurrentRecipes(recipes);
+        setCurrentMeta({
+          source: 'flyer',
+          flyerCount: flyerItems.length,
+          fridgeCount: fridgeNames.length,
+        });
+        showToast(`チラシから${flyerItems.length}件読取り、レシピを提案しました`);
+      } catch (e) {
+        console.error(e);
+        showToast(e.message || '検索に失敗しました', 'error');
+      } finally {
+        setSearching(null);
+      }
+    });
+  };
+
   /* --- search from fridge only --- */
-  const searchFromFridge = async () => {
+  const searchFromFridge = () => {
     if (fridge.length === 0) {
       showToast('冷蔵庫タブで食材を追加してください', 'error');
       return;
     }
-    setSearching('fridge');
-    setCurrentRecipes([]);
-    setCurrentMeta(null);
-    try {
-      const fridgeNames = fridge.map((f) => f.name);
-      const recipes = await suggestRecipes(fridgeNames, []);
-      if (!recipes.length) {
-        showToast('作れるレシピが見つかりませんでした', 'error');
+    requireQuotaAndRun(async () => {
+      setSearching('fridge');
+      setCurrentRecipes([]);
+      setCurrentMeta(null);
+      try {
+        const fridgeNames = fridge.map((f) => f.name);
+        const recipes = await suggestRecipes(fridgeNames, []);
+        if (!recipes.length) {
+          showToast('作れるレシピが見つかりませんでした', 'error');
+          setSearching(null);
+          return;
+        }
+        const entry = {
+          id: crypto.randomUUID(),
+          searchedAt: Date.now(),
+          source: 'fridge',
+          fridgeUsed: fridgeNames,
+          flyerItems: null,
+          recipes,
+        };
+        recordHistory(entry);
+        setCurrentRecipes(recipes);
+        setCurrentMeta({
+          source: 'fridge',
+          flyerCount: 0,
+          fridgeCount: fridgeNames.length,
+        });
+        showToast('冷蔵庫からレシピを提案しました');
+      } catch (e) {
+        console.error(e);
+        showToast(e.message || '検索に失敗しました', 'error');
+      } finally {
         setSearching(null);
-        return;
       }
-      const entry = {
-        id: crypto.randomUUID(),
-        searchedAt: Date.now(),
-        source: 'fridge',
-        fridgeUsed: fridgeNames,
-        flyerItems: null,
-        recipes,
-      };
-      recordHistory(entry);
-      setCurrentRecipes(recipes);
-      setCurrentMeta({
-        source: 'fridge',
-        flyerCount: 0,
-        fridgeCount: fridgeNames.length,
-      });
-      showToast('冷蔵庫からレシピを提案しました');
-    } catch (e) {
-      console.error(e);
-      showToast(e.message || '検索に失敗しました', 'error');
-    } finally {
-      setSearching(null);
-    }
+    });
   };
 
   /* --- open from history --- */
@@ -172,10 +236,7 @@ export default function App() {
 
   /* --- render --- */
   return (
-    <div
-      className="min-h-screen w-full"
-      style={{ paddingBottom: 88 }}
-    >
+    <div className="min-h-screen w-full" style={{ paddingBottom: 88 }}>
       {/* Header */}
       <header
         className="sticky top-0 z-30 px-5 pt-4 pb-3"
@@ -227,6 +288,7 @@ export default function App() {
                 fridgeCount={fridge.length}
                 onGo={setTab}
                 onOpenHistory={openHistory}
+                adSlot={AD_SLOTS.homeBanner}
               />
             )}
             {tab === 'fridge' && (
@@ -244,6 +306,9 @@ export default function App() {
                 onSearchFromFridge={searchFromFridge}
                 onOpenRecipe={setRecipeOpen}
                 fridgeCount={fridge.length}
+                quotaStatus={quotaStatus}
+                onWatchAd={handleManualWatchAd}
+                adSlot={AD_SLOTS.resultsFeed}
               />
             )}
           </>
@@ -271,9 +336,7 @@ export default function App() {
                 key={k}
                 onClick={() => setTab(k)}
                 className="flex flex-col items-center justify-center pt-2 pb-3 transition-colors"
-                style={{
-                  color: active ? COLORS.tomato : COLORS.inkSoft,
-                }}
+                style={{ color: active ? COLORS.tomato : COLORS.inkSoft }}
               >
                 <Icon
                   size={22}
@@ -293,7 +356,19 @@ export default function App() {
       </nav>
 
       {/* Overlays */}
-      {searching && <SearchingScreen source={searching} />}
+      {searching && (
+        <SearchingScreen
+          source={searching}
+          adSlot={AD_SLOTS.searchingFullscreen}
+        />
+      )}
+      {showReward && (
+        <RewardAdModal
+          slot={AD_SLOTS.rewardModal}
+          onClaim={handleRewardClaim}
+          onCancel={handleRewardCancel}
+        />
+      )}
       {recipeOpen && (
         <RecipeDetail
           recipe={recipeOpen}

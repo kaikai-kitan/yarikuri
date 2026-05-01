@@ -12,8 +12,50 @@
 - 📋 **チラシ画像読み取り**: 画像をアップロードするとAIが特売品を抽出（**画像は保存されません**、テキストのみ使用）
 - 🍳 **AIレシピ提案**: 冷蔵庫＋特売品の組合せから3件のレシピを提案、コスト計算付き
 - 🔗 **外部レシピ検索**: クックパッド／楽天レシピ／Googleの検索ページへ自動リンク
-- 📜 **履歴**: 直近3回分の検索結果をホームに保存（古いものは自動削除）
-- 💴 **Google AdSense**: ホーム下部・レシピフィード内・検索中ローディング画面に配置
+- 📜 **履歴**: 直近3回分の検索結果をホームに保存
+- 🎁 **1日1回まで無料、リワード広告で追加検索可能**
+- 💴 **Google AdSense**: ホームバナー・検索中・結果フィード・リワード枠に広告配置
+
+## 利用回数の制限
+
+API費用の暴走を防ぎつつ広告収益を確保するため、以下の制限があります:
+
+| 区分 | 上限 | 備考 |
+|---|---|---|
+| 無料利用 | 1日1回 | localStorage + cookie で管理 |
+| 追加利用 | 無制限 | 1回ごとに15秒のリワード広告視聴が必要 |
+| サーバー側IP制限 | 1分10回 / 1時間60回 | Bot連打対策 |
+| Anthropic月次予算 | 自分で設定 | 最終ストッパー |
+
+### 制限の限界 (正直に開示)
+
+ログイン機能なしの設計上、以下のケースでは「1日1回」を回避されます:
+- プライベートブラウズ / シークレットモードの使用
+- ブラウザのキャッシュ・データ削除
+- 異なるブラウザ・デバイスの使用
+
+これは認証なし設計の構造的限界であり、対策には Google ログイン等の導入が必要です。
+ただし、サーバーIPレート制限と Anthropic 月次予算上限により、**金銭的な暴走は防止できます**。
+
+## 収益モデル試算
+
+10万 DAU を想定した場合:
+
+| 広告位置 | 1人/日のインプレッション数 (推定) |
+|---|---|
+| ホームバナー | 1.0 |
+| 検索中フルスクリーン | 1.5 |
+| レシピ結果フィード内 | 1.5 |
+| リワード広告 (50%が追加検索) | 0.5 |
+| **合計** | **約4.5 imp/DAU** |
+
+**月間インプレッション**: 100K × 30日 × 4.5 = **1,350万 imp/月**
+
+**目標 ¥80,000 達成に必要なCPM**: ¥80,000 ÷ 13,500 = **¥5.9 RPM**
+
+日本の食・節約系AdSenseの実勢CPMは ¥80〜300 のため、目標は十分達成圏内です。
+
+---
 
 ## 技術スタック
 
@@ -21,104 +63,76 @@
 |---|---|
 | フロントエンド | React 18 + Vite + Tailwind CSS |
 | バックエンド | Vercel Serverless Functions (Node.js) |
-| AI | Anthropic Claude API (Vision + Text) |
-| ストレージ | ブラウザの `localStorage`（端末ローカル）|
-| 広告 | Google AdSense |
+| AI | Anthropic Claude Sonnet 4.5 (Vision + Text) |
+| ストレージ | ブラウザの `localStorage` + cookie |
+| 広告 | Google AdSense (ID: `ca-pub-3006458424365247`) |
 | ホスティング | Vercel |
-
-> 設計要件書ではSvelteKit + Supabase案でしたが、**ユーザー登録不要**という方針に基づき、ユーザーごとのDB保存は不要となるため、より軽量な「React + localStorage + Vercelサーバーレス」構成で実装しています。冷蔵庫の在庫はユーザー本人の端末にのみ保存され、サーバー側にユーザーデータは一切残りません。
 
 ---
 
-## デプロイ手順（GitHub → Vercel）
+## デプロイ手順 (GitHub → Vercel)
 
 ### 1. GitHubに公開
 
 ```bash
-# プロジェクトのルートで
 git init
 git add .
-git commit -m "Initial commit: ヤリクリ"
-
-# GitHubで新しいリポジトリ（例: tokubai-recipe-app）を作成後
+git commit -m "Initial commit"
 git branch -M main
 git remote add origin https://github.com/<あなたのID>/tokubai-recipe-app.git
 git push -u origin main
 ```
 
-### 2. Anthropic API キーの取得
+### 2. Anthropic API キー取得 + 月次予算設定
 
-https://console.anthropic.com にログイン → **API keys** → **Create Key**
-発行されたキー（`sk-ant-...`）をコピーしておく。
+1. https://console.anthropic.com → API keys → Create Key
+2. **重要**: Settings → Billing → **Monthly spend limit** を設定 (例: $20/月)
+   - これが最終的なコスト暴走防止の砦になります
 
-### 3. Vercelにデプロイ
+### 3. Vercel にデプロイ
 
 1. https://vercel.com にGitHubアカウントでログイン
-2. **Add New → Project** を押す
-3. 上で作成したGitHubリポジトリを **Import**
-4. **Framework Preset** は自動で「Vite」が選択される（そのままでOK）
-5. **Environment Variables** に以下を追加:
-   - **Name**: `ANTHROPIC_API_KEY`
-   - **Value**: 取得したAPIキー
-   - **Environment**: Production / Preview / Development すべてチェック
-6. **Deploy** を押す
+2. **Add New → Project** で対象リポジトリをImport
+3. **Environment Variables** に追加:
+   - `ANTHROPIC_API_KEY` = 取得したAPIキー
+4. **Deploy** を押す
 
-数分で `https://<プロジェクト名>.vercel.app` のURLが発行され、誰でもアクセスできます。
+### 4. AdSense サイト承認
 
-### 4. カスタムドメイン（任意）
+1. AdSense管理画面 → **サイト** にデプロイ済みVercelドメインを追加
+2. 自動広告を有効化 (推奨)
 
-Vercelの **Settings → Domains** から独自ドメインを接続できます。
+### 5. (推奨) 個別広告ユニット作成
 
----
+`src/App.jsx` の `AD_SLOTS` オブジェクトに、AdSenseで作成した各ユニットのスロットIDを設定すると、配置を最適化できます:
 
-## Google AdSense 設定
-
-`index.html` には既にあなたのパブリッシャーID `ca-pub-3006458424365247` が埋め込まれており、本番URLにアクセスがあれば自動的にAdSenseに認識されます。
-
-### サイト審査を通す
-
-1. AdSense管理画面 → **サイト** にデプロイ済みのVercelドメインを追加
-2. 審査が通るまで広告は表示されません（通常数日〜2週間）
-
-### 広告ユニットの個別配置（推奨）
-
-現状は **AdSense自動広告** 任せの実装で、`<AdSlot>` コンポーネントは枠だけのプレースホルダーとして機能します。個別ユニットでより正確な配置をしたい場合:
-
-1. AdSense管理画面 → **広告 → 広告ユニットごと → 新しいディスプレイ広告**
-2. 名前を付けて作成（例: `recipe_feed_ad`、`searching_screen_ad`、`home_banner_ad`）
-3. 表示される **データ広告スロットID**（10桁の数字）をコピー
-4. 各 `<AdSlot>` コンポーネント呼び出しに `slot="1234567890"` を追加
-
-例（`src/components/HomeView.jsx`）:
-```jsx
-<AdSlot slot="1234567890" label="ホームバナー" minHeight={100} />
+```js
+const AD_SLOTS = {
+  homeBanner: '1234567890',         // ホーム履歴下のバナー
+  searchingFullscreen: '2345678901', // 検索中の全画面広告
+  resultsFeed: '3456789012',        // レシピ結果のフィード内
+  rewardModal: '4567890123',        // リワード広告モーダル
+};
 ```
 
-### プライバシーポリシー（AdSense必須）
+各ユニットは AdSense → 広告 → 広告ユニットごと → 新しいディスプレイ広告 で作成できます。
 
-AdSense審査通過のため、プライバシーポリシーページの公開が推奨されます。後述の「拡張案」も参照してください。
+空文字のままだと自動広告に任せる動作になります（プレースホルダー枠のみ表示）。
 
 ---
 
 ## ローカル開発
 
 ```bash
-# 依存をインストール
 npm install
-
-# .envファイルを作成
 cp .env.example .env
 # .env を編集して ANTHROPIC_API_KEY=sk-ant-... を設定
 
-# Vercel CLI（サーバーレス関数のローカル実行に必要）をインストール
 npm install -g vercel
-
-# ローカル起動（フロント + サーバーレス関数）
 vercel dev
 ```
 
-ブラウザで `http://localhost:3000` を開く。
-（`npm run dev` だとViteは起動するが`/api`が動かないため、必ず `vercel dev` を使用）
+`http://localhost:3000` を開く（フロント + サーバーレス関数の両方が動きます）。
 
 ---
 
@@ -131,29 +145,33 @@ vercel dev
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
-├── vercel.json                # サーバーレス関数の最大実行時間など
-├── index.html                 # AdSenseスクリプト埋め込み
+├── vercel.json
+├── index.html              # AdSenseスクリプト埋め込み
 ├── .env.example
-├── api/                       # Vercel Serverless Functions
-│   ├── ocr-flyer.js           # チラシ画像をClaude Visionで解析
-│   └── suggest-recipes.js     # レシピ提案
+├── api/
+│   ├── _ratelimit.js       # IPベースのレート制限ヘルパー
+│   ├── ocr-flyer.js        # チラシ画像をClaude Visionで解析
+│   └── suggest-recipes.js  # レシピ提案
 └── src/
     ├── main.jsx
-    ├── App.jsx                # メインオーケストレーション
+    ├── App.jsx             # メインオーケストレーション (クォータ管理含む)
     ├── index.css
-    ├── theme.js               # 配色・フォント
+    ├── theme.js
     ├── lib/
-    │   ├── storage.js         # localStorageラッパー
-    │   ├── api.js             # サーバーレス関数の呼び出し
-    │   └── image.js           # クライアント側画像圧縮
+    │   ├── storage.js
+    │   ├── api.js
+    │   ├── image.js
+    │   └── usage.js        # 1日1回 + リワードチケット管理
     └── components/
-        ├── HomeView.jsx       # ホーム（履歴一覧）
-        ├── FridgeView.jsx     # 冷蔵庫管理
-        ├── RecipesView.jsx    # レシピ検索＋結果表示
-        ├── RecipeDetail.jsx   # レシピ詳細モーダル
-        ├── SearchingScreen.jsx# 検索中の全画面ローディング
-        ├── AdSlot.jsx         # AdSense広告スロット
-        └── ui.jsx             # 共通UI部品
+        ├── HomeView.jsx
+        ├── FridgeView.jsx
+        ├── RecipesView.jsx
+        ├── RecipeDetail.jsx
+        ├── SearchingScreen.jsx
+        ├── RewardAdModal.jsx  # リワード広告モーダル (15秒視聴)
+        ├── QuotaBanner.jsx    # 残り回数表示
+        ├── AdSlot.jsx
+        └── ui.jsx
 ```
 
 ---
@@ -161,21 +179,22 @@ vercel dev
 ## アーキテクチャの要点
 
 ### Anthropic APIキーの秘匿
+ブラウザから直接Anthropic APIを呼ぶとAPIキーが露出するため、Vercelサーバーレス関数経由で呼び出しています。
 
-ブラウザから直接Anthropic APIを呼ぶとAPIキーが露出してしまうため、Vercelのサーバーレス関数（`/api/*`）経由で呼び出します。フロントは `/api/ocr-flyer` と `/api/suggest-recipes` を叩くだけで、APIキーはVercel環境変数として保管されます。
+### 二層防御のレート制限
+1. **クライアント側**: localStorage + cookie で1日1回 + リワードチケット管理
+2. **サーバー側**: IP単位で1分10回・1時間60回のハードリミット
+
+サーバーレス関数のメモリは揮発性のため、IP制限は「同一warmコンテナ内でのバースト攻撃」のみ防げる best-effort 実装です。本格運用では Upstash Redis (`@upstash/ratelimit`) との連携を推奨。
+
+### AdSenseポリシー準拠
+リワード広告の報酬条件を「広告クリック」ではなく「経過時間（15秒）」にしています。これは AdSense ポリシーの "Encouraging clicks" 違反を避けるためです。
 
 ### チラシ画像はサーバーに保存されない
-
 1. ブラウザでCanvas経由で画像を圧縮（最長辺1600px、JPEG品質85%）
 2. base64でサーバーレス関数に送信
 3. Anthropic APIにそのまま転送
-4. レスポンス（特売品のテキストJSON）を返したら、画像データはメモリから消える
-
-サーバー側にはストレージを設けていないため、画像は**一切保存されません**。
-
-### 履歴管理
-
-検索が成功すると、結果を `localStorage` の `history:searches` キーに保存（最大3件、FIFO）。ホーム画面で過去の提案を再表示できます。
+4. レスポンス (JSON) を返したら破棄
 
 ---
 
@@ -183,18 +202,11 @@ vercel dev
 
 | 項目 | 実装方針 |
 |---|---|
-| プライバシーポリシーページ | `src/components/PrivacyView.jsx` を追加してフッターからリンク |
-| 利用規約ページ | 同上 |
-| LINE Bot連携 | `api/line-webhook.js` を追加し、LINE Messaging APIでチラシ画像受信→Webアプリと連動 |
-| Supabase切替 | `src/lib/storage.js` をSupabaseクライアント呼び出しに差し替え（インターフェースは互換）|
-| PWA化 | `vite-plugin-pwa` 導入でホーム画面追加・オフライン対応 |
-| クラウドDB履歴同期 | Supabase接続後に履歴をユーザー紐付けで同期 |
-
----
-
-## モデル設定
-
-`api/ocr-flyer.js` と `api/suggest-recipes.js` の冒頭の `const MODEL = 'claude-sonnet-4-5';` を変更すればモデルを切り替えられます。
+| **強固な利用制限** | Google / LINE ログイン導入 → ユーザーID単位で制限 |
+| **本格的レート制限** | Upstash Redis `@upstash/ratelimit` を `_ratelimit.js` に統合 |
+| **プライバシーポリシー** | AdSense審査必須。`/privacy` ページの追加 |
+| **PWA化** | `vite-plugin-pwa` 導入でホーム画面追加・オフライン対応 |
+| **本物のリワード動画広告** | Google Ad Manager の Web Rewarded Video へ移行 |
 
 ---
 

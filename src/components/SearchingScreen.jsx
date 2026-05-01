@@ -19,7 +19,7 @@ const MESSAGES = {
   ],
 };
 
-export default function SearchingScreen({ source = 'fridge' }) {
+export default function SearchingScreen({ source = 'fridge', adSlot }) {
   const [idx, setIdx] = useState(0);
   const messages = MESSAGES[source] || MESSAGES.fridge;
 
@@ -65,7 +65,11 @@ export default function SearchingScreen({ source = 'fridge' }) {
           >
             — Sponsored —
           </div>
-          <AdSlot label="検索中広告 (300×250)" minHeight={250} />
+          <AdSlot
+            slot={adSlot}
+            label="検索中広告 (300×250)"
+            minHeight={250}
+          />
         </div>
 
         {/* Skeleton preview */}

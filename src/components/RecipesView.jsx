@@ -3,6 +3,7 @@ import { Camera, Refrigerator, ChefHat, Wallet } from 'lucide-react';
 import { COLORS } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
 import AdSlot from './AdSlot';
+import QuotaBanner from './QuotaBanner';
 
 export default function RecipesView({
   currentRecipes,
@@ -11,6 +12,9 @@ export default function RecipesView({
   onSearchFromFridge,
   onOpenRecipe,
   fridgeCount,
+  quotaStatus,
+  onWatchAd,
+  adSlot,
 }) {
   const fileRef = useRef(null);
 
@@ -21,6 +25,8 @@ export default function RecipesView({
         title="レシピを探す"
         sub="チラシ画像か冷蔵庫の在庫からレシピを提案します。"
       />
+
+      <QuotaBanner status={quotaStatus} onWatchAd={onWatchAd} />
 
       {/* Action buttons */}
       <div className="space-y-3 mb-6">
@@ -43,7 +49,7 @@ export default function RecipesView({
               チラシ画像を読み取ってレシピを探す
             </div>
             <div className="text-xs opacity-85">
-              画像から特売品を読取り、冷蔵庫と組合せて提案
+              撮影またはアルバムから画像を選択できます
             </div>
           </div>
         </button>
@@ -51,7 +57,6 @@ export default function RecipesView({
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) onSearchFromFlyer(f);
@@ -129,7 +134,11 @@ export default function RecipesView({
                 rank={i + 1}
               />
             ))}
-            <AdSlot label="フィード内広告 (336×280)" minHeight={250} />
+            <AdSlot
+              slot={adSlot}
+              label="フィード内広告 (336×280)"
+              minHeight={250}
+            />
           </div>
         </>
       )}

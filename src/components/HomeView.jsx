@@ -3,7 +3,13 @@ import { COLORS } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
 import AdSlot from './AdSlot';
 
-export default function HomeView({ history, fridgeCount, onGo, onOpenHistory }) {
+export default function HomeView({
+  history,
+  fridgeCount,
+  onGo,
+  onOpenHistory,
+  adSlot,
+}) {
   return (
     <div className="fade-up">
       {/* Hero */}
@@ -160,7 +166,7 @@ export default function HomeView({ history, fridgeCount, onGo, onOpenHistory }) 
         </ul>
       )}
 
-      <AdSlot label="ホームバナー (320×100)" minHeight={100} />
+      <AdSlot slot={adSlot} label="ホームバナー (320×100)" minHeight={100} />
     </div>
   );
 }
