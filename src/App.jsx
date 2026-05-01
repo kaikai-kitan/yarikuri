@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Home, Refrigerator, ChefHat, Loader2 } from 'lucide-react';
 import { COLORS } from './theme';
 import { loadList, saveList } from './lib/storage';
@@ -19,9 +19,9 @@ import { Toast } from './components/ui';
 
 const HISTORY_LIMIT = 3;
 
-// AdSense広告ユニットのスロットID。AdSense管理画面で個別ユニットを
-// 作成し、そのスロットIDをここに入れると、自動広告ではなく
-// 個別配置ができるようになる。空文字のままだと自動広告任せ。
+// AdSense広告ユニットのスロットID。各タブが独立URLを持つようになったので、
+// AdSense管理画面で個別ユニットを作成し、ページ別最適化が可能。
+// 空文字のままだと自動広告に任せる動作になる。
 const AD_SLOTS = {
   homeBanner: '',
   searchingFullscreen: '',
@@ -29,8 +29,25 @@ const AD_SLOTS = {
   rewardModal: '',
 };
 
+// パス ⇄ タブキーの対応
+const PATH_TO_TAB = {
+  '/': 'home',
+  '/fridge': 'fridge',
+  '/recipes': 'recipes',
+};
+const TAB_TO_PATH = {
+  home: '/',
+  fridge: '/fridge',
+  recipes: '/recipes',
+};
+
+function getTabFromPath() {
+  if (typeof window === 'undefined') return 'home';
+  return PATH_TO_TAB[window.location.pathname] || 'home';
+}
+
 export default function App() {
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState(() => getTabFromPath());
   const [fridge, setFridge] = useState([]);
   const [history, setHistory] = useState([]);
   const [currentRecipes, setCurrentRecipes] = useState([]);
@@ -39,7 +56,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [searching, setSearching] = useState(null);
   const [showReward, setShowReward] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // 報酬獲得後に実行する処理
+  const [pendingAction, setPendingAction] = useState(null);
   const [quotaStatus, setQuotaStatus] = useState({
     freeRemaining: 1,
     rewardedTickets: 0,
@@ -47,6 +64,34 @@ export default function App() {
     needsReward: false,
   });
   const [ready, setReady] = useState(false);
+
+  // URLとタブを同期させるnavigate関数
+  const navigate = useCallback((nextTab) => {
+    const targetPath = TAB_TO_PATH[nextTab] || '/';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+    setTab(nextTab);
+    // ページ遷移時はスクロールを上に戻す
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  // ブラウザの戻る/進むボタンに対応
+  useEffect(() => {
+    const handler = () => setTab(getTabFromPath());
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, []);
+
+  // タブ変更時にページタイトルも更新（AdSense・SEO最適化）
+  useEffect(() => {
+    const titles = {
+      home: 'ヤリクリ｜特売×冷蔵庫の最安レシピ',
+      fridge: '冷蔵庫の在庫管理 ｜ ヤリクリ',
+      recipes: 'レシピを探す ｜ ヤリクリ',
+    };
+    document.title = titles[tab] || titles.home;
+  }, [tab]);
 
   /* --- initial load --- */
   useEffect(() => {
@@ -71,7 +116,6 @@ export default function App() {
   }, [history, ready]);
 
   const refreshQuota = () => setQuotaStatus(getStatus());
-
   const showToast = (message, type = 'info') => setToast({ message, type });
 
   /* --- fridge --- */
@@ -99,12 +143,10 @@ export default function App() {
   const requireQuotaAndRun = (actionFn) => {
     const status = getStatus();
     if (status.totalRemaining > 0) {
-      // 利用可能枠がある → 即実行
       consumeSearch();
       refreshQuota();
       actionFn();
     } else {
-      // 残枠なし → リワード広告へ誘導
       setPendingAction(() => actionFn);
       setShowReward(true);
     }
@@ -116,7 +158,6 @@ export default function App() {
     refreshQuota();
     setShowReward(false);
     if (pendingAction) {
-      // 受け取ったチケットを即消費して実行
       consumeSearch();
       refreshQuota();
       pendingAction();
@@ -231,7 +272,7 @@ export default function App() {
       flyerCount: entry.flyerItems?.length || 0,
       fridgeCount: entry.fridgeUsed?.length || 0,
     });
-    setTab('recipes');
+    navigate('recipes');
   };
 
   /* --- render --- */
@@ -286,7 +327,7 @@ export default function App() {
               <HomeView
                 history={history}
                 fridgeCount={fridge.length}
-                onGo={setTab}
+                onGo={navigate}
                 onOpenHistory={openHistory}
                 adSlot={AD_SLOTS.homeBanner}
               />
@@ -334,7 +375,7 @@ export default function App() {
             return (
               <button
                 key={k}
-                onClick={() => setTab(k)}
+                onClick={() => navigate(k)}
                 className="flex flex-col items-center justify-center pt-2 pb-3 transition-colors"
                 style={{ color: active ? COLORS.tomato : COLORS.inkSoft }}
               >
