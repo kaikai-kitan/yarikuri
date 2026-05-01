@@ -1,10 +1,12 @@
 // /api/ocr-flyer
-// チラシ画像をClaude Visionで解析し、特売品のテキスト情報のみを返す。
+// チラシ画像をClaude Vision (Haiku 4.5) で解析し、特売品のテキスト情報のみを返す。
 // 画像データは保存せず、レスポンス後に破棄される。
 
 import { checkRateLimit } from './_ratelimit.js';
 
-const MODEL = 'claude-sonnet-4-5';
+// Haiku 4.5: $1/$5 per 1M tokens (Sonnet比1/3コスト)
+// 構造化された情報抽出タスクには十分な品質。
+const MODEL = 'claude-haiku-4-5';
 
 export const config = {
   api: {
@@ -17,7 +19,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // IPベースのレート制限
   const limited = checkRateLimit(req);
   if (limited) {
     res.setHeader('Retry-After', limited.retryAfter);

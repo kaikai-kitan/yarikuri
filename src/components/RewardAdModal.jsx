@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Gift, X, Check } from 'lucide-react';
+import { X, Check, Play } from 'lucide-react';
 import { COLORS } from '../theme';
 import AdSlot from './AdSlot';
 
 const COUNTDOWN_SECONDS = 15;
 
 /**
- * リワード広告モーダル。
- * フルスクリーンで広告を表示し、15秒経過後に「報酬を受け取る」ボタンが活性化する。
- * AdSenseポリシー準拠のため、広告クリックを報酬条件にせず、
- * 純粋に経過時間で報酬を渡す。
+ * 検索前リワード広告モーダル。
+ * 毎回の検索前に表示され、15秒の経過で「検索開始」ボタンが活性化する。
+ * 経過時間ベースで報酬を渡すことでAdSenseポリシー準拠。
  */
 export default function RewardAdModal({ onClaim, onCancel, slot }) {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
@@ -33,12 +32,16 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
         style={{ borderBottom: `1px solid ${COLORS.border}` }}
       >
         <div className="flex items-center gap-2">
-          <Gift size={18} style={{ color: COLORS.tomato }} />
+          <Play
+            size={16}
+            style={{ color: COLORS.tomato }}
+            fill={COLORS.tomato}
+          />
           <span
             className="display text-sm font-bold"
             style={{ color: COLORS.ink }}
           >
-            広告で1回分追加
+            広告のあとレシピ検索
           </span>
         </div>
         <button
@@ -54,20 +57,22 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-5 py-6">
         <div className="text-center mb-5">
-          <div className="text-5xl mb-3">🎁</div>
+          <div className="text-5xl mb-3">🍳</div>
           <h3
             className="display text-xl font-bold mb-2"
             style={{ color: COLORS.ink }}
           >
-            広告を見て、もう1回検索
+            無料でご利用いただけます
           </h3>
           <p
             className="text-xs leading-relaxed"
             style={{ color: COLORS.inkSoft }}
           >
-            この広告を{COUNTDOWN_SECONDS}秒間ご覧いただくと、
+            このアプリは広告で運営されています。
             <br />
-            レシピ検索を1回追加でご利用いただけます。
+            {COUNTDOWN_SECONDS}秒間広告をご覧いただくと、
+            <br />
+            レシピ検索を開始できます。
           </p>
         </div>
 
@@ -88,14 +93,14 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
           </div>
           <AdSlot
             slot={slot}
-            label="リワード広告 (300×250 程度)"
+            label="リワード広告 (300×250)"
             minHeight={250}
             format="rectangle"
           />
         </div>
       </div>
 
-      {/* Footer / claim button */}
+      {/* Footer */}
       <div
         className="px-5 py-4"
         style={{
@@ -111,7 +116,7 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
             style={{ background: COLORS.tomato, color: COLORS.paper }}
           >
             <Check size={16} />
-            報酬を受け取る (検索1回分)
+            レシピ検索を開始
           </button>
         ) : (
           <button
@@ -130,7 +135,7 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
           className="text-[10px] text-center mt-2"
           style={{ color: COLORS.inkSoft }}
         >
-          広告のクリックは不要です。{COUNTDOWN_SECONDS}秒経過で自動的に受取可能になります。
+          広告のクリックは不要です。経過時間で自動的に進めます。
         </div>
       </div>
     </div>

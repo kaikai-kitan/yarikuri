@@ -1,9 +1,8 @@
 import { useRef } from 'react';
-import { Camera, Refrigerator, ChefHat, Wallet } from 'lucide-react';
+import { Camera, Refrigerator, ChefHat, Wallet, Play } from 'lucide-react';
 import { COLORS } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
 import AdSlot from './AdSlot';
-import QuotaBanner from './QuotaBanner';
 
 export default function RecipesView({
   currentRecipes,
@@ -12,8 +11,6 @@ export default function RecipesView({
   onSearchFromFridge,
   onOpenRecipe,
   fridgeCount,
-  quotaStatus,
-  onWatchAd,
   adSlot,
 }) {
   const fileRef = useRef(null);
@@ -26,7 +23,29 @@ export default function RecipesView({
         sub="チラシ画像か冷蔵庫の在庫からレシピを提案します。"
       />
 
-      <QuotaBanner status={quotaStatus} onWatchAd={onWatchAd} />
+      {/* 広告サポートの注記 */}
+      <div
+        className="rounded-2xl px-4 py-3 flex items-center gap-3 mb-4"
+        style={{
+          background: COLORS.paper,
+          border: `1px solid ${COLORS.border}`,
+        }}
+      >
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: COLORS.blush, color: COLORS.tomato }}
+        >
+          <Play size={14} fill={COLORS.tomato} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-bold" style={{ color: COLORS.ink }}>
+            無料・広告サポート
+          </div>
+          <div className="text-[11px]" style={{ color: COLORS.inkSoft }}>
+            検索ごとに15秒の広告をご視聴いただきます
+          </div>
+        </div>
+      </div>
 
       {/* Action buttons */}
       <div className="space-y-3 mb-6">
@@ -49,7 +68,7 @@ export default function RecipesView({
               チラシ画像を読み取ってレシピを探す
             </div>
             <div className="text-xs opacity-85">
-              撮影またはアルバムから画像を選択できます
+              撮影またはアルバムから画像を選択
             </div>
           </div>
         </button>

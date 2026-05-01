@@ -4,14 +4,14 @@
 
 import { checkRateLimit } from './_ratelimit.js';
 
-const MODEL = 'claude-sonnet-4-5';
+// Haiku 4.5: $1/$5 per 1M tokens (Sonnet比1/3コスト)
+const MODEL = 'claude-haiku-4-5';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // IPベースのレート制限
   const limited = checkRateLimit(req);
   if (limited) {
     res.setHeader('Retry-After', limited.retryAfter);

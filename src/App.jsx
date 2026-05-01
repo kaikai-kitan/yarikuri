@@ -4,11 +4,6 @@ import { COLORS } from './theme';
 import { loadList, saveList } from './lib/storage';
 import { ocrFlyer, suggestRecipes } from './lib/api';
 import { compressImage } from './lib/image';
-import {
-  getStatus,
-  consumeSearch,
-  grantRewardTicket,
-} from './lib/usage';
 import HomeView from './components/HomeView';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
@@ -19,8 +14,8 @@ import { Toast } from './components/ui';
 
 const HISTORY_LIMIT = 3;
 
-// AdSense広告ユニットのスロットID。各タブが独立URLを持つようになったので、
-// AdSense管理画面で個別ユニットを作成し、ページ別最適化が可能。
+// AdSense広告ユニットのスロットID。各タブが独立URLを持つので
+// AdSense管理画面で個別ユニット作成 → ページ別最適化が可能。
 // 空文字のままだと自動広告に任せる動作になる。
 const AD_SLOTS = {
   homeBanner: '',
@@ -29,7 +24,6 @@ const AD_SLOTS = {
   rewardModal: '',
 };
 
-// パス ⇄ タブキーの対応
 const PATH_TO_TAB = {
   '/': 'home',
   '/fridge': 'fridge',
@@ -56,34 +50,26 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [searching, setSearching] = useState(null);
   const [showReward, setShowReward] = useState(false);
+  // 広告視聴後に実行する検索処理を保持
   const [pendingAction, setPendingAction] = useState(null);
-  const [quotaStatus, setQuotaStatus] = useState({
-    freeRemaining: 1,
-    rewardedTickets: 0,
-    totalRemaining: 1,
-    needsReward: false,
-  });
   const [ready, setReady] = useState(false);
 
-  // URLとタブを同期させるnavigate関数
+  /* --- URL routing --- */
   const navigate = useCallback((nextTab) => {
     const targetPath = TAB_TO_PATH[nextTab] || '/';
     if (window.location.pathname !== targetPath) {
       window.history.pushState({}, '', targetPath);
     }
     setTab(nextTab);
-    // ページ遷移時はスクロールを上に戻す
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  // ブラウザの戻る/進むボタンに対応
   useEffect(() => {
     const handler = () => setTab(getTabFromPath());
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
   }, []);
 
-  // タブ変更時にページタイトルも更新（AdSense・SEO最適化）
   useEffect(() => {
     const titles = {
       home: 'ヤリクリ｜特売×冷蔵庫の最安レシピ',
@@ -102,7 +88,6 @@ export default function App() {
       ]);
       setFridge(f);
       setHistory(h);
-      setQuotaStatus(getStatus());
       setReady(true);
     })();
   }, []);
@@ -115,7 +100,6 @@ export default function App() {
     if (ready) saveList('history:searches', history);
   }, [history, ready]);
 
-  const refreshQuota = () => setQuotaStatus(getStatus());
   const showToast = (message, type = 'info') => setToast({ message, type });
 
   /* --- fridge --- */
@@ -139,45 +123,39 @@ export default function App() {
     setHistory(next);
   };
 
-  /* --- quota check + execute --- */
-  const requireQuotaAndRun = (actionFn) => {
-    const status = getStatus();
-    if (status.totalRemaining > 0) {
-      consumeSearch();
-      refreshQuota();
-      actionFn();
-    } else {
-      setPendingAction(() => actionFn);
-      setShowReward(true);
-    }
+  /* --- 全検索の前にリワード広告を表示する共通ラッパー --- */
+  const gateBehindAd = (actionFn) => {
+    setPendingAction(() => actionFn);
+    setShowReward(true);
   };
 
-  /* --- reward ad callbacks --- */
   const handleRewardClaim = () => {
-    grantRewardTicket();
-    refreshQuota();
     setShowReward(false);
     if (pendingAction) {
-      consumeSearch();
-      refreshQuota();
       pendingAction();
       setPendingAction(null);
     }
-    showToast('検索1回分が追加されました', 'info');
   };
   const handleRewardCancel = () => {
     setShowReward(false);
     setPendingAction(null);
   };
-  const handleManualWatchAd = () => {
-    setPendingAction(null);
-    setShowReward(true);
+
+  /* --- 履歴を開く (これは課金不要、過去結果の再表示) --- */
+  const openHistory = (entry) => {
+    setCurrentRecipes(entry.recipes);
+    setCurrentMeta({
+      source: entry.source,
+      flyerCount: entry.flyerItems?.length || 0,
+      fridgeCount: entry.fridgeUsed?.length || 0,
+    });
+    navigate('recipes');
   };
 
-  /* --- search from flyer --- */
-  const searchFromFlyer = async (file) => {
+  /* --- search from flyer (要広告視聴) --- */
+  const searchFromFlyer = (file) => {
     if (!file) return;
-    requireQuotaAndRun(async () => {
+    gateBehindAd(async () => {
       setSearching('flyer');
       setCurrentRecipes([]);
       setCurrentMeta(null);
@@ -221,13 +199,13 @@ export default function App() {
     });
   };
 
-  /* --- search from fridge only --- */
+  /* --- search from fridge only (要広告視聴) --- */
   const searchFromFridge = () => {
     if (fridge.length === 0) {
       showToast('冷蔵庫タブで食材を追加してください', 'error');
       return;
     }
-    requireQuotaAndRun(async () => {
+    gateBehindAd(async () => {
       setSearching('fridge');
       setCurrentRecipes([]);
       setCurrentMeta(null);
@@ -264,21 +242,9 @@ export default function App() {
     });
   };
 
-  /* --- open from history --- */
-  const openHistory = (entry) => {
-    setCurrentRecipes(entry.recipes);
-    setCurrentMeta({
-      source: entry.source,
-      flyerCount: entry.flyerItems?.length || 0,
-      fridgeCount: entry.fridgeUsed?.length || 0,
-    });
-    navigate('recipes');
-  };
-
   /* --- render --- */
   return (
     <div className="min-h-screen w-full" style={{ paddingBottom: 88 }}>
-      {/* Header */}
       <header
         className="sticky top-0 z-30 px-5 pt-4 pb-3"
         style={{
@@ -312,7 +278,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Body */}
       <main className="px-5 pt-5">
         {!ready ? (
           <div
@@ -347,8 +312,6 @@ export default function App() {
                 onSearchFromFridge={searchFromFridge}
                 onOpenRecipe={setRecipeOpen}
                 fridgeCount={fridge.length}
-                quotaStatus={quotaStatus}
-                onWatchAd={handleManualWatchAd}
                 adSlot={AD_SLOTS.resultsFeed}
               />
             )}
@@ -356,7 +319,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Tab Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40"
         style={{
@@ -396,7 +358,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Overlays */}
       {searching && (
         <SearchingScreen
           source={searching}
