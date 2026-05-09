@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
-import { X, Check, Play } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { COLORS } from '../theme';
-import AdSlot from './AdSlot';
 
-const COUNTDOWN_SECONDS = 15;
+const COUNTDOWN_SECONDS = 5;
 
-/**
- * 検索前リワード広告モーダル。
- * 毎回の検索前に表示され、15秒の経過で「検索開始」ボタンが活性化する。
- * 経過時間ベースで報酬を渡すことでAdSenseポリシー準拠。
- */
-export default function RewardAdModal({ onClaim, onCancel, slot }) {
+const TIPS = [
+  { emoji: '🥕', title: '野菜の保存', body: '人参は葉を切り落とし、湿らせたキッチンペーパーで包むと1週間長持ちします。' },
+  { emoji: '🍳', title: '炒め物のコツ', body: '強火で短時間が基本。具材を入れすぎると水分が出てべたつくので、少量ずつ炒めましょう。' },
+  { emoji: '🧅', title: '玉ねぎの切り方', body: '繊維に沿って切ると食感が残り、繊維を断ち切ると甘みが出てトロトロになります。' },
+  { emoji: '🍚', title: 'ご飯の炊き方', body: '洗米後30分吸水させてから炊くと、ふっくら甘みのあるご飯に仕上がります。' },
+  { emoji: '🫙', title: '冷凍保存', body: 'きのこ類は洗わずそのまま冷凍OK。凍ったまま調理できて旨味もアップします。' },
+  { emoji: '🔪', title: '包丁のメンテ', body: '切れ味が悪い包丁は料理のストレス源。月1回の研ぎで調理が格段に楽になります。' },
+];
+
+function randomTip() {
+  return TIPS[Math.floor(Math.random() * TIPS.length)];
+}
+
+export default function RewardAdModal({ onClaim, onCancel }) {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+  const [tip] = useState(() => randomTip());
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -31,19 +39,9 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
         className="px-5 pt-4 pb-3 flex items-center justify-between"
         style={{ borderBottom: `1px solid ${COLORS.border}` }}
       >
-        <div className="flex items-center gap-2">
-          <Play
-            size={16}
-            style={{ color: COLORS.tomato }}
-            fill={COLORS.tomato}
-          />
-          <span
-            className="display text-sm font-bold"
-            style={{ color: COLORS.ink }}
-          >
-            広告のあとレシピ検索
-          </span>
-        </div>
+        <span className="display text-sm font-bold" style={{ color: COLORS.ink }}>
+          料理の豆知識
+        </span>
         <button
           onClick={onCancel}
           className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -55,48 +53,34 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-6">
-        <div className="text-center mb-5">
-          <div className="text-5xl mb-3">🍳</div>
-          <h3
-            className="display text-xl font-bold mb-2"
-            style={{ color: COLORS.ink }}
-          >
-            無料でご利用いただけます
-          </h3>
-          <p
-            className="text-xs leading-relaxed"
-            style={{ color: COLORS.inkSoft }}
-          >
-            このアプリは広告で運営されています。
-            <br />
-            {COUNTDOWN_SECONDS}秒間広告をご覧いただくと、
-            <br />
-            レシピ検索を開始できます。
-          </p>
-        </div>
+      <div className="flex-1 overflow-y-auto px-5 py-8 flex flex-col items-center justify-center">
+        <div className="text-7xl mb-5">{tip.emoji}</div>
+        <h3
+          className="display text-xl font-bold mb-3"
+          style={{ color: COLORS.ink }}
+        >
+          {tip.title}
+        </h3>
+        <p
+          className="text-sm leading-relaxed text-center"
+          style={{ color: COLORS.inkSoft, maxWidth: 280 }}
+        >
+          {tip.body}
+        </p>
 
-        {/* Ad area */}
         <div
-          className="rounded-2xl p-4 mb-5"
+          className="mt-10 rounded-2xl px-6 py-4 text-center"
           style={{
             background: COLORS.paper,
             border: `1px solid ${COLORS.border}`,
-            minHeight: 280,
           }}
         >
-          <div
-            className="text-[10px] tracking-widest text-center mb-2"
-            style={{ color: COLORS.inkSoft }}
-          >
-            — Sponsored —
-          </div>
-          <AdSlot
-            slot={slot}
-            label="リワード広告 (300×250)"
-            minHeight={250}
-            format="rectangle"
-          />
+          <p className="text-xs mb-1" style={{ color: COLORS.inkSoft }}>
+            AIがレシピを考えています…
+          </p>
+          <p className="text-xs" style={{ color: COLORS.inkSoft }}>
+            少しお待ちください
+          </p>
         </div>
       </div>
 
@@ -131,12 +115,6 @@ export default function RewardAdModal({ onClaim, onCancel, slot }) {
             あと {secondsLeft} 秒…
           </button>
         )}
-        <div
-          className="text-[10px] text-center mt-2"
-          style={{ color: COLORS.inkSoft }}
-        >
-          広告のクリックは不要です。経過時間で自動的に進めます。
-        </div>
       </div>
     </div>
   );

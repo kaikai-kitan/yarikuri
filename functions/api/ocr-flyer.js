@@ -1,38 +1,37 @@
-// /api/ocr-flyer
-// チラシ画像をClaude Vision (Haiku 4.5) で解析し、特売品のテキスト情報のみを返す。
-// 画像データは保存せず、レスポンス後に破棄される。
-
 import { checkRateLimit } from './_ratelimit.js';
 
-// Haiku 4.5: $1/$5 per 1M tokens (Sonnet比1/3コスト)
-// 構造化された情報抽出タスクには十分な品質。
 const MODEL = 'claude-haiku-4-5';
 
-export const config = {
-  api: {
-    bodyParser: { sizeLimit: '6mb' },
-  },
-};
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+  });
+}
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+export async function onRequestPost(context) {
+  const { request, env } = context;
 
-  const limited = checkRateLimit(req);
+  const limited = checkRateLimit(request);
   if (limited) {
-    res.setHeader('Retry-After', limited.retryAfter);
-    return res.status(429).json({ error: limited.error });
+    return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'サーバー設定エラー (APIキー未設定)' });
+    return json({ error: 'サーバー設定エラー (APIキー未設定)' }, 500);
   }
 
-  const { imageBase64, mediaType } = req.body || {};
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'リクエスト形式が不正です' }, 400);
+  }
+
+  const { imageBase64, mediaType } = body || {};
   if (!imageBase64 || typeof imageBase64 !== 'string') {
-    return res.status(400).json({ error: '画像データがありません' });
+    return json({ error: '画像データがありません' }, 400);
   }
 
   try {
@@ -81,9 +80,7 @@ export default async function handler(req, res) {
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('Anthropic API error:', upstream.status, errText);
-      return res
-        .status(502)
-        .json({ error: 'AI解析サービスからエラーが返されました' });
+      return json({ error: 'AI解析サービスからエラーが返されました' }, 502);
     }
 
     const data = await upstream.json();
@@ -93,7 +90,7 @@ export default async function handler(req, res) {
 
     const items = parseJsonArray(text);
     if (!items) {
-      return res.status(500).json({ error: '解析結果のフォーマットが不正です' });
+      return json({ error: '解析結果のフォーマットが不正です' }, 500);
     }
 
     const cleaned = items
@@ -110,12 +107,10 @@ export default async function handler(req, res) {
         store: typeof i.store === 'string' ? i.store.slice(0, 30).trim() : '',
       }));
 
-    return res.status(200).json({ items: cleaned });
+    return json({ items: cleaned });
   } catch (e) {
     console.error('OCR handler error:', e);
-    return res
-      .status(500)
-      .json({ error: e?.message || 'サーバーエラーが発生しました' });
+    return json({ error: e?.message || 'サーバーエラーが発生しました' }, 500);
   }
 }
 

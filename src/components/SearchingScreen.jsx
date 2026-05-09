@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { COLORS } from '../theme';
-import AdSlot from './AdSlot';
 
 const MESSAGES = {
   flyer: [
@@ -19,7 +18,7 @@ const MESSAGES = {
   ],
 };
 
-export default function SearchingScreen({ source = 'fridge', adSlot }) {
+export default function SearchingScreen({ source = 'fridge' }) {
   const [idx, setIdx] = useState(0);
   const messages = MESSAGES[source] || MESSAGES.fridge;
 
@@ -55,21 +54,6 @@ export default function SearchingScreen({ source = 'fridge', adSlot }) {
             <Loader2 className="spin-slow" size={12} />
             <span>15秒ほどお待ちください</span>
           </div>
-        </div>
-
-        {/* Ad */}
-        <div className="flex-1">
-          <div
-            className="text-[10px] tracking-widest text-center mb-2"
-            style={{ color: COLORS.inkSoft }}
-          >
-            — Sponsored —
-          </div>
-          <AdSlot
-            slot={adSlot}
-            label="検索中広告 (300×250)"
-            minHeight={250}
-          />
         </div>
 
         {/* Skeleton preview */}

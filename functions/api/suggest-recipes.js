@@ -1,31 +1,37 @@
-// /api/suggest-recipes
-// 冷蔵庫の食材リストとチラシから読み取った特売品リストから、
-// その日いちばん安く作れるレシピを3件提案する。
-
 import { checkRateLimit } from './_ratelimit.js';
 
-// Haiku 4.5: $1/$5 per 1M tokens (Sonnet比1/3コスト)
 const MODEL = 'claude-haiku-4-5';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+  });
+}
 
-  const limited = checkRateLimit(req);
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  const limited = checkRateLimit(request);
   if (limited) {
-    res.setHeader('Retry-After', limited.retryAfter);
-    return res.status(429).json({ error: limited.error });
+    return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'サーバー設定エラー (APIキー未設定)' });
+    return json({ error: 'サーバー設定エラー (APIキー未設定)' }, 500);
   }
 
-  const { fridge = [], flyerItems = [] } = req.body || {};
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'リクエスト形式が不正です' }, 400);
+  }
+
+  const { fridge = [], flyerItems = [] } = body || {};
   if (!Array.isArray(fridge) || !Array.isArray(flyerItems)) {
-    return res.status(400).json({ error: 'リクエスト形式が不正です' });
+    return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
   const fridgeText = fridge.length
@@ -33,10 +39,7 @@ export default async function handler(req, res) {
     : '（登録なし）';
   const flyerText = flyerItems.length
     ? flyerItems
-        .map(
-          (d) =>
-            `・${d.name} ${d.price}円${d.store ? `（${d.store}）` : ''}`
-        )
+        .map((d) => `・${d.name} ${d.price}円${d.store ? `（${d.store}）` : ''}`)
         .join('\n')
     : '（なし）';
 
@@ -89,9 +92,7 @@ ${flyerText}
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('Anthropic API error:', upstream.status, errText);
-      return res
-        .status(502)
-        .json({ error: 'AI提案サービスからエラーが返されました' });
+      return json({ error: 'AI提案サービスからエラーが返されました' }, 502);
     }
 
     const data = await upstream.json();
@@ -101,17 +102,13 @@ ${flyerText}
 
     const recipes = parseJsonArray(text);
     if (recipes === null) {
-      return res
-        .status(500)
-        .json({ error: '提案結果のフォーマットが不正です' });
+      return json({ error: '提案結果のフォーマットが不正です' }, 500);
     }
 
-    return res.status(200).json({ recipes });
+    return json({ recipes });
   } catch (e) {
     console.error('Recipe handler error:', e);
-    return res
-      .status(500)
-      .json({ error: e?.message || 'サーバーエラーが発生しました' });
+    return json({ error: e?.message || 'サーバーエラーが発生しました' }, 500);
   }
 }
 

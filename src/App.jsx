@@ -359,14 +359,10 @@ export default function App() {
       </nav>
 
       {searching && (
-        <SearchingScreen
-          source={searching}
-          adSlot={AD_SLOTS.searchingFullscreen}
-        />
+        <SearchingScreen source={searching} />
       )}
       {showReward && (
         <RewardAdModal
-          slot={AD_SLOTS.rewardModal}
           onClaim={handleRewardClaim}
           onCancel={handleRewardCancel}
         />
