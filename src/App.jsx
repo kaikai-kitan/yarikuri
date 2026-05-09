@@ -10,6 +10,7 @@ import RecipesView from './components/RecipesView';
 import RecipeDetail from './components/RecipeDetail';
 import SearchingScreen from './components/SearchingScreen';
 import RewardAdModal from './components/RewardAdModal';
+import PrivacyView from './components/PrivacyView';
 import { Toast } from './components/ui';
 
 const HISTORY_LIMIT = 3;
@@ -28,11 +29,13 @@ const PATH_TO_TAB = {
   '/': 'home',
   '/fridge': 'fridge',
   '/recipes': 'recipes',
+  '/privacy': 'privacy',
 };
 const TAB_TO_PATH = {
   home: '/',
   fridge: '/fridge',
   recipes: '/recipes',
+  privacy: '/privacy',
 };
 
 function getTabFromPath() {
@@ -75,6 +78,7 @@ export default function App() {
       home: 'ヤリクリ｜特売×冷蔵庫の最安レシピ',
       fridge: '冷蔵庫の在庫管理 ｜ ヤリクリ',
       recipes: 'レシピを探す ｜ ヤリクリ',
+      privacy: 'プライバシーポリシー ｜ ヤリクリ',
     };
     document.title = titles[tab] || titles.home;
   }, [tab]);
@@ -315,6 +319,7 @@ export default function App() {
                 adSlot={AD_SLOTS.resultsFeed}
               />
             )}
+            {tab === 'privacy' && <PrivacyView />}
           </>
         )}
       </main>
@@ -355,6 +360,18 @@ export default function App() {
               </button>
             );
           })}
+        </div>
+        <div
+          className="text-center py-1"
+          style={{ borderTop: `1px solid ${COLORS.border}` }}
+        >
+          <button
+            onClick={() => navigate('privacy')}
+            className="text-[10px]"
+            style={{ color: COLORS.inkSoft }}
+          >
+            プライバシーポリシー
+          </button>
         </div>
       </nav>
 
