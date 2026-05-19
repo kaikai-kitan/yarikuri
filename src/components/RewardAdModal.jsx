@@ -1,3 +1,4 @@
+'use client';
 import { useEffect, useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { COLORS } from '../theme';

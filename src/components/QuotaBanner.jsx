@@ -1,3 +1,4 @@
+'use client';
 import { Sparkles, Gift } from 'lucide-react';
 import { COLORS } from '../theme';
 

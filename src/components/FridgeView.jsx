@@ -1,3 +1,4 @@
+'use client';
 import { useState, useRef } from 'react';
 import { Refrigerator, Plus, X } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';

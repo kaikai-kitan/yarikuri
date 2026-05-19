@@ -1,3 +1,4 @@
+'use client';
 import { Wallet, ExternalLink, Image as ImageIcon, Search } from 'lucide-react';
 import { COLORS } from '../theme';
 

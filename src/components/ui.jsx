@@ -1,3 +1,4 @@
+'use client';
 import { useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';

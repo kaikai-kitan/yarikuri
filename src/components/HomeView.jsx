@@ -1,3 +1,4 @@
+'use client';
 import { Sparkles, History, ChevronRight, Tag, Refrigerator } from 'lucide-react';
 import { COLORS } from '../theme';
 import { SectionHeader, EmptyState } from './ui';

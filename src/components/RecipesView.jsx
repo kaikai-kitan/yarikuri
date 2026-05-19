@@ -1,3 +1,4 @@
+'use client';
 import { useRef } from 'react';
 import { Camera, Refrigerator, ChefHat, Wallet, Play } from 'lucide-react';
 import { COLORS } from '../theme';

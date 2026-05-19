@@ -4,20 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "npx serve out"
   },
   "dependencies": {
+    "gray-matter": "^4.0.3",
     "lucide-react": "^0.383.0",
+    "marked": "^12.0.0",
+    "next": "^14.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
-    "vite": "^5.2.0"
+    "tailwindcss": "^3.4.4"
   }
 }
