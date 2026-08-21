@@ -48,3 +48,28 @@ export function budgetSummary({ monthlyLimit, expenses, now = new Date() }) {
     isOver: hasLimit && remaining < 0,
   };
 }
+
+// 記録する前に「記録したらどうなるか」を出す。
+// 予算未設定、または当月以外のレシートは今月の残額に影響しない。
+export function projectExpense({ summary, amount, date, now = new Date() }) {
+  const value = Number(amount) || 0;
+  const applies =
+    summary.hasLimit && typeof date === 'string' && date.startsWith(monthKey(now));
+
+  if (!applies) {
+    return {
+      applies: false,
+      remaining: summary.remaining,
+      dailyAllowance: summary.dailyAllowance,
+      isOver: false,
+    };
+  }
+
+  const remaining = summary.remaining - value;
+  return {
+    applies: true,
+    remaining,
+    dailyAllowance: remaining > 0 ? Math.floor(remaining / summary.daysLeft) : 0,
+    isOver: remaining < 0,
+  };
+}

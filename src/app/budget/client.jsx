@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import BudgetView from '@/components/BudgetView';
 import { Toast } from '@/components/ui';
 import { useMonthlyLimit, useExpenses, useFridge } from '@/lib/hooks';
-import { budgetSummary, foodItemsOf } from '@/lib/budget';
+import { budgetSummary, foodItemsOf, projectExpense } from '@/lib/budget';
 import { ocrReceipt } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { newId } from '@/lib/id';
@@ -78,13 +78,24 @@ export default function BudgetPageClient() {
     );
   }
 
+  const summary = budgetSummary({ monthlyLimit, expenses });
+
   return (
     <>
       <BudgetView
-        summary={budgetSummary({ monthlyLimit, expenses })}
+        summary={summary}
         expenses={expenses}
         scanning={scanning}
         pendingReceipt={pendingReceipt}
+        projection={
+          pendingReceipt
+            ? projectExpense({
+                summary,
+                amount: pendingReceipt.total,
+                date: pendingReceipt.date,
+              })
+            : null
+        }
         onSetLimit={setMonthlyLimit}
         onScanReceipt={scanReceipt}
         onConfirmReceipt={confirmReceipt}

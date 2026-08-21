@@ -38,6 +38,7 @@ const renderView = (props = {}) => {
       expenses={[]}
       scanning={false}
       pendingReceipt={null}
+      projection={null}
       {...handlers}
       {...props}
     />
@@ -187,5 +188,48 @@ describe('BudgetView — expense history', () => {
 
     // Assert
     expect(onRemoveExpense).toHaveBeenCalledWith('e-1');
+  });
+});
+
+describe('BudgetView — projected impact', () => {
+  const projection = (overrides = {}) => ({
+    applies: true,
+    remaining: 6760,
+    dailyAllowance: 614,
+    isOver: false,
+    ...overrides,
+  });
+
+  test('shows what the remaining budget becomes after recording', () => {
+    // Arrange & Act
+    renderView({ pendingReceipt: receipt(), projection: projection() });
+
+    // Assert
+    expect(screen.getByText('記録後の残り')).toBeInTheDocument();
+    expect(screen.getByText('¥6,760')).toBeInTheDocument();
+  });
+
+  test('warns before recording a receipt that breaks the budget', () => {
+    // Arrange & Act
+    renderView({ pendingReceipt: receipt(), projection: projection({ remaining: -5000, isOver: true, dailyAllowance: 0 }) });
+
+    // Assert
+    expect(screen.getByText('この記録で今月の予算を超えます')).toBeInTheDocument();
+    expect(screen.getByText('-¥5,000')).toBeInTheDocument();
+  });
+
+  test('explains when the receipt does not affect this month', () => {
+    // Arrange & Act
+    renderView({ pendingReceipt: receipt({ date: '2026-07-28' }), projection: projection({ applies: false }) });
+
+    // Assert
+    expect(screen.getByText('今月の予算には影響しません')).toBeInTheDocument();
+    expect(screen.queryByText('記録後の残り')).not.toBeInTheDocument();
+  });
+
+  test('omits the projection entirely when none is available', () => {
+    renderView({ pendingReceipt: receipt(), projection: null });
+    expect(screen.queryByText('記録後の残り')).not.toBeInTheDocument();
+    expect(screen.queryByText('今月の予算には影響しません')).not.toBeInTheDocument();
   });
 });

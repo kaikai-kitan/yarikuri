@@ -6,6 +6,7 @@ import {
   totalOf,
   foodItemsOf,
   budgetSummary,
+  projectExpense,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -159,5 +160,64 @@ describe('budgetSummary', () => {
 
   test('tolerates a missing expense list', () => {
     expect(budgetSummary({ monthlyLimit: 30000, expenses: undefined, now }).spent).toBe(0);
+  });
+});
+
+describe('projectExpense', () => {
+  const now = new Date(2026, 7, 21); // 8月、残り11日
+  const base = { monthlyLimit: 30000, expenses: [expense({ date: '2026-08-05', total: 10000 })], now };
+
+  test('reports the remaining budget as it will be after recording', () => {
+    // Arrange
+    const summary = budgetSummary(base);
+
+    // Act
+    const p = projectExpense({ summary, amount: 3240, date: '2026-08-21', now });
+
+    // Assert
+    expect(summary.remaining).toBe(20000);
+    expect(p.applies).toBe(true);
+    expect(p.remaining).toBe(16760);
+    expect(p.isOver).toBe(false);
+  });
+
+  test('flags a receipt that would push the month over budget', () => {
+    const p = projectExpense({ summary: budgetSummary(base), amount: 25000, date: '2026-08-21', now });
+    expect(p.remaining).toBe(-5000);
+    expect(p.isOver).toBe(true);
+  });
+
+  test('recalculates the daily allowance from the projected remainder', () => {
+    const p = projectExpense({ summary: budgetSummary(base), amount: 9000, date: '2026-08-21', now });
+    expect(p.remaining).toBe(11000);
+    expect(p.dailyAllowance).toBe(1000);
+  });
+
+  test('does not touch this month when the receipt is from another month', () => {
+    // Arrange
+    const summary = budgetSummary(base);
+
+    // Act
+    const p = projectExpense({ summary, amount: 5000, date: '2026-07-28', now });
+
+    // Assert
+    expect(p.applies).toBe(false);
+    expect(p.remaining).toBe(summary.remaining);
+    expect(p.isOver).toBe(false);
+  });
+
+  test('reports nothing to project when no budget is set', () => {
+    const p = projectExpense({
+      summary: budgetSummary({ monthlyLimit: 0, expenses: [], now }),
+      amount: 3240,
+      date: '2026-08-21',
+      now,
+    });
+    expect(p.applies).toBe(false);
+  });
+
+  test('clamps the projected daily allowance to zero when overspent', () => {
+    const p = projectExpense({ summary: budgetSummary(base), amount: 25000, date: '2026-08-21', now });
+    expect(p.dailyAllowance).toBe(0);
   });
 });

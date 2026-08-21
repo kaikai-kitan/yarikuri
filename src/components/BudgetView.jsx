@@ -13,6 +13,7 @@ export default function BudgetView({
   expenses,
   scanning,
   pendingReceipt,
+  projection,
   onSetLimit,
   onScanReceipt,
   onConfirmReceipt,
@@ -160,7 +161,14 @@ export default function BudgetView({
       )}
 
       {/* 読み取り結果の確認 */}
-      {pendingReceipt && <PendingReceipt receipt={pendingReceipt} onConfirm={onConfirmReceipt} onCancel={onCancelReceipt} />}
+      {pendingReceipt && (
+        <PendingReceipt
+          receipt={pendingReceipt}
+          projection={projection}
+          onConfirm={onConfirmReceipt}
+          onCancel={onCancelReceipt}
+        />
+      )}
 
       {/* 支出履歴 */}
       <h3 className="text-[10px] tracking-[0.3em] mb-3" style={{ color: COLORS.gold }}>
@@ -220,7 +228,7 @@ function Figure({ label, value, tone }) {
   );
 }
 
-function PendingReceipt({ receipt, onConfirm, onCancel }) {
+function PendingReceipt({ receipt, projection, onConfirm, onCancel }) {
   const foodCount = receipt.items.filter((i) => i.isFood).length;
 
   return (
@@ -260,6 +268,8 @@ function PendingReceipt({ receipt, onConfirm, onCancel }) {
         冷蔵庫に{foodCount}品を登録します
       </p>
 
+      {projection && <Projection projection={projection} />}
+
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
@@ -276,6 +286,45 @@ function PendingReceipt({ receipt, onConfirm, onCancel }) {
           やめる
         </button>
       </div>
+    </div>
+  );
+}
+
+// 記録する前に家計への影響を見せる。
+function Projection({ projection }) {
+  if (!projection.applies) {
+    return (
+      <p className="text-[11px] mb-3" style={{ color: COLORS.inkSoft }}>
+        今月の予算には影響しません
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-xl px-3 py-2 mb-3"
+      style={{ background: COLORS.cream }}
+    >
+      <div className="flex items-baseline justify-between">
+        <span className="text-[11px]" style={{ color: COLORS.inkSoft }}>
+          記録後の残り
+        </span>
+        <span
+          className="text-sm font-bold"
+          style={{ color: projection.isOver ? COLORS.tomatoDeep : COLORS.matcha }}
+        >
+          {yen(projection.remaining)}
+        </span>
+      </div>
+      {projection.isOver ? (
+        <p className="text-[11px] mt-1 font-bold" style={{ color: COLORS.tomatoDeep }}>
+          この記録で今月の予算を超えます
+        </p>
+      ) : (
+        <p className="text-[11px] mt-1" style={{ color: COLORS.inkSoft }}>
+          1日あたり {yen(projection.dailyAllowance)} になります
+        </p>
+      )}
     </div>
   );
 }

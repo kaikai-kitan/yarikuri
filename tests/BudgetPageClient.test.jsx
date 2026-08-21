@@ -160,4 +160,33 @@ describe('BudgetPageClient', () => {
     // Assert
     await waitFor(() => expect(stored('budget:expenses')).toEqual([]));
   });
+
+  test('shows the projected remaining budget before recording', async () => {
+    // Arrange
+    localStorage.setItem('budget:limit', JSON.stringify(30000));
+    const today = new Date().toISOString().slice(0, 10);
+    ocrReceipt.mockResolvedValue(receipt({ date: today, total: 3240 }));
+    render(<BudgetPageClient />);
+
+    // Act
+    await scan();
+
+    // Assert
+    expect(await screen.findByText('記録後の残り')).toBeInTheDocument();
+    expect(screen.getByText('¥26,760')).toBeInTheDocument();
+  });
+
+  test('warns before recording a receipt that breaks the budget', async () => {
+    // Arrange
+    localStorage.setItem('budget:limit', JSON.stringify(2000));
+    const today = new Date().toISOString().slice(0, 10);
+    ocrReceipt.mockResolvedValue(receipt({ date: today, total: 3240 }));
+    render(<BudgetPageClient />);
+
+    // Act
+    await scan();
+
+    // Assert
+    expect(await screen.findByText('この記録で今月の予算を超えます')).toBeInTheDocument();
+  });
 });
