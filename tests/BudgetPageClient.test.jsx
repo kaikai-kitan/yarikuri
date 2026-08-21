@@ -189,4 +189,34 @@ describe('BudgetPageClient', () => {
     // Assert
     expect(await screen.findByText('この記録で今月の予算を超えます')).toBeInTheDocument();
   });
+
+  test('respects a category corrected before recording', async () => {
+    // Arrange — 洗剤は daily と判定されているが、実は食材だった場合
+    render(<BudgetPageClient />);
+    await scan();
+    await screen.findByRole('button', { name: '記録する' });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('洗剤 のカテゴリ'), { target: { value: 'food' } });
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('fridge:items')).toHaveLength(3));
+    expect(stored('fridge:items').map((f) => f.name)).toContain('洗剤');
+  });
+
+  test('keeps an item out of the fridge when it is recategorised away from food', async () => {
+    // Arrange
+    render(<BudgetPageClient />);
+    await scan();
+    await screen.findByRole('button', { name: '記録する' });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('牛乳 のカテゴリ'), { target: { value: 'other' } });
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('fridge:items')).toHaveLength(1));
+    expect(stored('fridge:items').map((f) => f.name)).toEqual(['しょうゆ']);
+  });
 });

@@ -68,6 +68,15 @@ export default function BudgetPageClient() {
     });
   };
 
+  // 確認画面でのカテゴリ訂正。冷蔵庫に入る品目もこの時点で決まる。
+  const changeItemCategory = (index, category) =>
+    setPendingReceipt({
+      ...pendingReceipt,
+      items: pendingReceipt.items.map((item, i) =>
+        i === index ? { ...item, category, isFood: category === 'food' } : item
+      ),
+    });
+
   const removeExpense = (id) => setExpenses(expenses.filter((e) => e.id !== id));
 
   if (!ready) {
@@ -101,6 +110,7 @@ export default function BudgetPageClient() {
         onConfirmReceipt={confirmReceipt}
         onCancelReceipt={() => setPendingReceipt(null)}
         onRemoveExpense={removeExpense}
+        onChangeItemCategory={changeItemCategory}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>

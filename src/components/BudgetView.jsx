@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Wallet, Receipt, Loader2, X, Refrigerator } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
+import { CATEGORIES, CATEGORY_LABELS, categoryOf } from '../lib/budget';
 
 const yen = (n) => `${n < 0 ? '-' : ''}¥${Math.abs(Math.round(n)).toLocaleString('ja-JP')}`;
 
@@ -19,6 +20,7 @@ export default function BudgetView({
   onConfirmReceipt,
   onCancelReceipt,
   onRemoveExpense,
+  onChangeItemCategory,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -165,6 +167,7 @@ export default function BudgetView({
         <PendingReceipt
           receipt={pendingReceipt}
           projection={projection}
+          onChangeItemCategory={onChangeItemCategory}
           onConfirm={onConfirmReceipt}
           onCancel={onCancelReceipt}
         />
@@ -228,8 +231,8 @@ function Figure({ label, value, tone }) {
   );
 }
 
-function PendingReceipt({ receipt, projection, onConfirm, onCancel }) {
-  const foodCount = receipt.items.filter((i) => i.isFood).length;
+function PendingReceipt({ receipt, projection, onChangeItemCategory, onConfirm, onCancel }) {
+  const foodCount = receipt.items.filter((i) => categoryOf(i) === 'food').length;
 
   return (
     <div
@@ -248,20 +251,45 @@ function PendingReceipt({ receipt, projection, onConfirm, onCancel }) {
         {receipt.date}
       </div>
 
-      <ul className="mb-3 space-y-1">
-        {receipt.items.map((item, i) => (
-          <li key={`${item.name}-${i}`} className="flex items-center gap-2 text-xs">
-            {item.isFood ? (
-              <Refrigerator size={12} style={{ color: COLORS.matcha }} />
-            ) : (
-              <span className="w-3" />
-            )}
-            <span className="flex-1" style={{ color: item.isFood ? COLORS.ink : COLORS.inkSoft }}>
-              {item.name}
-            </span>
-            <span style={{ color: COLORS.inkSoft }}>{yen(item.price)}</span>
-          </li>
-        ))}
+      <ul className="mb-3 space-y-1.5">
+        {receipt.items.map((item, i) => {
+          const category = categoryOf(item);
+          const isFood = category === 'food';
+          return (
+            <li key={`${item.name}-${i}`} className="flex items-center gap-2 text-xs">
+              {isFood ? (
+                <Refrigerator size={12} style={{ color: COLORS.matcha }} />
+              ) : (
+                <span className="w-3 shrink-0" />
+              )}
+              <span
+                className="flex-1 min-w-0 truncate"
+                style={{ color: isFood ? COLORS.ink : COLORS.inkSoft }}
+              >
+                {item.name}
+              </span>
+              <span style={{ color: COLORS.inkSoft }}>{yen(item.price)}</span>
+              <select
+                aria-label={`${item.name} のカテゴリ`}
+                value={category}
+                onChange={(e) => onChangeItemCategory(i, e.target.value)}
+                className="text-[11px] rounded-lg px-1.5 py-1 outline-none"
+                style={{
+                  background: COLORS.cream,
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.inkSoft,
+                  fontFamily: FONT_BODY,
+                }}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </li>
+          );
+        })}
       </ul>
 
       <p className="text-[11px] mb-3" style={{ color: COLORS.matcha }}>

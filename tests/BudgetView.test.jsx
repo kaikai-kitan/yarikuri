@@ -31,6 +31,7 @@ const renderView = (props = {}) => {
     onConfirmReceipt: vi.fn(),
     onCancelReceipt: vi.fn(),
     onRemoveExpense: vi.fn(),
+    onChangeItemCategory: vi.fn(),
   };
   render(
     <BudgetView
@@ -231,5 +232,62 @@ describe('BudgetView — projected impact', () => {
     renderView({ pendingReceipt: receipt(), projection: null });
     expect(screen.queryByText('記録後の残り')).not.toBeInTheDocument();
     expect(screen.queryByText('今月の予算には影響しません')).not.toBeInTheDocument();
+  });
+});
+
+describe('BudgetView — item categories', () => {
+  const categorised = () => ({
+    store: 'スーパーA',
+    date: '2026-08-21',
+    total: 3240,
+    items: [
+      { name: '牛乳', price: 198, category: 'food' },
+      { name: '洗剤', price: 320, category: 'daily' },
+      { name: '雑誌', price: 500, category: 'other' },
+    ],
+  });
+
+  test('shows each item with its current category selected', () => {
+    // Arrange & Act
+    renderView({ pendingReceipt: categorised() });
+
+    // Assert
+    expect(screen.getByLabelText('牛乳 のカテゴリ')).toHaveValue('food');
+    expect(screen.getByLabelText('洗剤 のカテゴリ')).toHaveValue('daily');
+    expect(screen.getByLabelText('雑誌 のカテゴリ')).toHaveValue('other');
+  });
+
+  test('derives the category of legacy items from isFood', () => {
+    renderView({ pendingReceipt: receipt() });
+    expect(screen.getByLabelText('牛乳 のカテゴリ')).toHaveValue('food');
+    expect(screen.getByLabelText('洗剤 のカテゴリ')).toHaveValue('other');
+  });
+
+  test('reports a category change with the item position', () => {
+    // Arrange
+    const { onChangeItemCategory } = renderView({ pendingReceipt: categorised() });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('洗剤 のカテゴリ'), { target: { value: 'food' } });
+
+    // Assert
+    expect(onChangeItemCategory).toHaveBeenCalledWith(1, 'food');
+  });
+
+  test('counts only food items as going to the fridge', () => {
+    renderView({ pendingReceipt: categorised() });
+    expect(screen.getByText('冷蔵庫に1品を登録します')).toBeInTheDocument();
+  });
+
+  test('follows the categories it is given when they change', () => {
+    // Arrange
+    const receiptWithTwoFoods = categorised();
+    receiptWithTwoFoods.items[1] = { name: '洗剤', price: 320, category: 'food' };
+
+    // Act
+    renderView({ pendingReceipt: receiptWithTwoFoods });
+
+    // Assert
+    expect(screen.getByText('冷蔵庫に2品を登録します')).toBeInTheDocument();
   });
 });
