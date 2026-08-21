@@ -1,5 +1,20 @@
 // 家計簿の集計ロジック。すべて純関数で、保存や画面には依存しない。
 
+// 支出カテゴリ。冷蔵庫に登録するのは food のみ。
+export const CATEGORIES = ['food', 'daily', 'other'];
+
+export const CATEGORY_LABELS = {
+  food: '食費',
+  daily: '日用品',
+  other: 'その他',
+};
+
+// カテゴリ導入前の保存データは isFood しか持たないため、そこから移行する。
+export function categoryOf(item) {
+  if (CATEGORIES.includes(item?.category)) return item.category;
+  return item?.isFood === true ? 'food' : 'other';
+}
+
 const pad2 = (n) => String(n).padStart(2, '0');
 
 // 'YYYY-MM'。支出の月次集計キーとして使う。
@@ -27,7 +42,31 @@ export function totalOf(expenses) {
 
 // 冷蔵庫に登録できる品目（食材・調味料）だけを取り出す。
 export function foodItemsOf(expense) {
-  return (expense?.items ?? []).filter((i) => i?.isFood === true);
+  return (expense?.items ?? []).filter((i) => categoryOf(i) === 'food');
+}
+
+// カテゴリ別の支出合計。
+// 品目の合計がレシート合計に満たない差額（袋代・税の端数・読み取り漏れ）は
+// 「その他」に寄せて、カテゴリ合計とレシート合計を一致させる。
+export function totalByCategory(expenses) {
+  const totals = { food: 0, daily: 0, other: 0 };
+
+  for (const e of expenses ?? []) {
+    let itemsTotal = 0;
+    for (const item of e?.items ?? []) {
+      const price = Number(item?.price);
+      if (!Number.isFinite(price)) continue;
+      totals[categoryOf(item)] += price;
+      itemsTotal += price;
+    }
+
+    const receiptTotal = Number(e?.total);
+    if (Number.isFinite(receiptTotal)) {
+      totals.other += Math.max(0, receiptTotal - itemsTotal);
+    }
+  }
+
+  return totals;
 }
 
 // 画面とAIプロンプトの両方が参照する、今月の家計サマリー。

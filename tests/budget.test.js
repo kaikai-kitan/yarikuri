@@ -7,6 +7,10 @@ import {
   foodItemsOf,
   budgetSummary,
   projectExpense,
+  categoryOf,
+  totalByCategory,
+  CATEGORIES,
+  CATEGORY_LABELS,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -219,5 +223,93 @@ describe('projectExpense', () => {
   test('clamps the projected daily allowance to zero when overspent', () => {
     const p = projectExpense({ summary: budgetSummary(base), amount: 25000, date: '2026-08-21', now });
     expect(p.dailyAllowance).toBe(0);
+  });
+});
+
+describe('categoryOf', () => {
+  test('uses the explicit category when the item has one', () => {
+    expect(categoryOf({ name: '洗剤', price: 320, category: 'daily' })).toBe('daily');
+  });
+
+  test('falls back to isFood for records saved before categories existed', () => {
+    expect(categoryOf({ name: '牛乳', price: 198, isFood: true })).toBe('food');
+    expect(categoryOf({ name: '洗剤', price: 320, isFood: false })).toBe('other');
+  });
+
+  test('treats an unknown category as other', () => {
+    expect(categoryOf({ name: '謎', price: 1, category: 'groceries' })).toBe('other');
+  });
+
+  test('treats a missing item as other', () => {
+    expect(categoryOf(undefined)).toBe('other');
+    expect(categoryOf({ name: '謎', price: 1 })).toBe('other');
+  });
+
+  test('prefers the explicit category over a conflicting isFood flag', () => {
+    expect(categoryOf({ name: '惣菜', price: 400, category: 'other', isFood: true })).toBe('other');
+  });
+});
+
+describe('CATEGORIES', () => {
+  test('exposes the three categories with Japanese labels', () => {
+    expect(CATEGORIES).toEqual(['food', 'daily', 'other']);
+    expect(CATEGORY_LABELS.food).toBe('食費');
+    expect(CATEGORY_LABELS.daily).toBe('日用品');
+    expect(CATEGORY_LABELS.other).toBe('その他');
+  });
+});
+
+describe('totalByCategory', () => {
+  const withItems = (id, items, total) => expense({ id, items, total });
+
+  test('sums item prices per category', () => {
+    // Arrange
+    const list = [
+      withItems('e-1', [
+        { name: '牛乳', price: 200, category: 'food' },
+        { name: '洗剤', price: 300, category: 'daily' },
+      ], 500),
+      withItems('e-2', [{ name: '豆腐', price: 100, category: 'food' }], 100),
+    ];
+
+    // Act
+    const totals = totalByCategory(list);
+
+    // Assert
+    expect(totals.food).toBe(300);
+    expect(totals.daily).toBe(300);
+    expect(totals.other).toBe(0);
+  });
+
+  test('classifies legacy isFood items', () => {
+    // Arrange
+    const list = [
+      withItems('e-1', [
+        { name: '牛乳', price: 200, isFood: true },
+        { name: '洗剤', price: 300, isFood: false },
+      ], 500),
+    ];
+
+    // Act & Assert
+    expect(totalByCategory(list)).toEqual({ food: 200, daily: 0, other: 300 });
+  });
+
+  test('books the unexplained remainder of a receipt to other', () => {
+    // 品目の合計(300)がレシート合計(500)に満たない差額は「その他」に寄せる
+    const list = [withItems('e-1', [{ name: '牛乳', price: 300, category: 'food' }], 500)];
+    expect(totalByCategory(list)).toEqual({ food: 300, daily: 0, other: 200 });
+  });
+
+  test('does not invent a negative remainder when items exceed the total', () => {
+    const list = [withItems('e-1', [{ name: '牛乳', price: 800, category: 'food' }], 500)];
+    expect(totalByCategory(list).other).toBe(0);
+  });
+
+  test('books an itemless expense entirely to other', () => {
+    expect(totalByCategory([withItems('e-1', [], 1200)])).toEqual({ food: 0, daily: 0, other: 1200 });
+  });
+
+  test('returns zeroes for an empty list', () => {
+    expect(totalByCategory([])).toEqual({ food: 0, daily: 0, other: 0 });
   });
 });
