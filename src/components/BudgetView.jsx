@@ -4,6 +4,7 @@ import { Wallet, Receipt, Loader2, X, Refrigerator } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
 import { CATEGORIES, CATEGORY_LABELS, categoryOf } from '../lib/budget';
+import ExpenseForm from './ExpenseForm';
 
 const yen = (n) => `${n < 0 ? '-' : ''}¥${Math.abs(Math.round(n)).toLocaleString('ja-JP')}`;
 
@@ -21,9 +22,11 @@ export default function BudgetView({
   onCancelReceipt,
   onRemoveExpense,
   onChangeItemCategory,
+  onAddExpense,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [adding, setAdding] = useState(false);
 
   const showForm = !summary.hasLimit || editing;
 
@@ -145,7 +148,7 @@ export default function BudgetView({
       ) : (
         !pendingReceipt && (
           <label
-            className="rounded-2xl p-4 mb-6 flex items-center justify-center gap-2 text-sm font-bold cursor-pointer active:scale-95 transition-transform"
+            className="rounded-2xl p-4 mb-3 flex items-center justify-center gap-2 text-sm font-bold cursor-pointer active:scale-95 transition-transform"
             style={{ background: COLORS.tomato, color: COLORS.paper }}
           >
             <Receipt size={16} />
@@ -160,6 +163,31 @@ export default function BudgetView({
             />
           </label>
         )
+      )}
+
+      {!scanning && !pendingReceipt && !adding && (
+        <button
+          onClick={() => setAdding(true)}
+          className="w-full rounded-2xl px-4 py-3 mb-6 text-sm active:scale-95 transition-transform"
+          style={{
+            background: 'transparent',
+            border: `1px dashed ${COLORS.border}`,
+            color: COLORS.inkSoft,
+          }}
+        >
+          手入力で追加
+        </button>
+      )}
+
+      {/* 手入力 */}
+      {adding && (
+        <ExpenseForm
+          onSubmit={(values) => {
+            onAddExpense(values);
+            setAdding(false);
+          }}
+          onCancel={() => setAdding(false)}
+        />
       )}
 
       {/* 読み取り結果の確認 */}

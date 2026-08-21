@@ -68,6 +68,15 @@ export default function BudgetPageClient() {
     });
   };
 
+  // レシートを撮らない支出。品目を持たないため、記録自体のカテゴリで集計される。
+  const addExpense = ({ total, store, date, category }) => {
+    setExpenses([
+      { id: newId(), date, store, total, category, items: [], createdAt: Date.now() },
+      ...expenses,
+    ]);
+    setToast({ message: '記録しました' });
+  };
+
   // 確認画面でのカテゴリ訂正。冷蔵庫に入る品目もこの時点で決まる。
   const changeItemCategory = (index, category) =>
     setPendingReceipt({
@@ -111,6 +120,7 @@ export default function BudgetPageClient() {
         onCancelReceipt={() => setPendingReceipt(null)}
         onRemoveExpense={removeExpense}
         onChangeItemCategory={changeItemCategory}
+        onAddExpense={addExpense}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>

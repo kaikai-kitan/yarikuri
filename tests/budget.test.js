@@ -313,3 +313,28 @@ describe('totalByCategory', () => {
     expect(totalByCategory([])).toEqual({ food: 0, daily: 0, other: 0 });
   });
 });
+
+describe('totalByCategory — expense level category', () => {
+  test('books an itemless expense to its own category', () => {
+    // 手入力の記録は品目を持たないため、記録自体のカテゴリで集計する
+    const list = [expense({ id: 'm-1', items: [], total: 1200, category: 'food' })];
+    expect(totalByCategory(list)).toEqual({ food: 1200, daily: 0, other: 0 });
+  });
+
+  test('books the tax remainder of a receipt to the receipt category', () => {
+    const list = [
+      expense({
+        id: 'e-1',
+        items: [{ name: '牛乳', price: 2131, category: 'food' }],
+        total: 2313,
+        category: 'food',
+      }),
+    ];
+    expect(totalByCategory(list)).toEqual({ food: 2313, daily: 0, other: 0 });
+  });
+
+  test('still books the remainder to other when the expense has no category', () => {
+    const list = [expense({ id: 'e-1', items: [{ name: '牛乳', price: 300, category: 'food' }], total: 500 })];
+    expect(totalByCategory(list)).toEqual({ food: 300, daily: 0, other: 200 });
+  });
+});

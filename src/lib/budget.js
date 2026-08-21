@@ -60,9 +60,11 @@ export function totalByCategory(expenses) {
       itemsTotal += price;
     }
 
+    // 差額（袋代・税の端数・読み取り漏れ）と、品目を持たない手入力の記録は、
+    // 記録自体のカテゴリに寄せる。指定が無ければ「その他」。
     const receiptTotal = Number(e?.total);
     if (Number.isFinite(receiptTotal)) {
-      totals.other += Math.max(0, receiptTotal - itemsTotal);
+      totals[categoryOf({ category: e?.category })] += Math.max(0, receiptTotal - itemsTotal);
     }
   }
 

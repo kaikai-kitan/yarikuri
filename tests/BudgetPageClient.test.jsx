@@ -219,4 +219,40 @@ describe('BudgetPageClient', () => {
     await waitFor(() => expect(stored('fridge:items')).toHaveLength(1));
     expect(stored('fridge:items').map((f) => f.name)).toEqual(['しょうゆ']);
   });
+
+  test('records a manually entered spend against the budget', async () => {
+    // Arrange
+    localStorage.setItem('budget:limit', JSON.stringify(30000));
+    render(<BudgetPageClient />);
+    fireEvent.click(await screen.findByRole('button', { name: '手入力で追加' }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '1200' } });
+    fireEvent.change(screen.getByLabelText('店名'), { target: { value: '自販機' } });
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('budget:expenses')).toHaveLength(1));
+    expect(stored('budget:expenses')[0]).toMatchObject({
+      store: '自販機',
+      total: 1200,
+      category: 'food',
+      items: [],
+    });
+    expect(await screen.findByText('¥28,800')).toBeInTheDocument();
+  });
+
+  test('does not stock the fridge from a manual entry', async () => {
+    // Arrange
+    render(<BudgetPageClient />);
+    fireEvent.click(await screen.findByRole('button', { name: '手入力で追加' }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '800' } });
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('budget:expenses')).toHaveLength(1));
+    expect(stored('fridge:items')).toEqual([]);
+  });
 });

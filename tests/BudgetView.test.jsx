@@ -32,6 +32,7 @@ const renderView = (props = {}) => {
     onCancelReceipt: vi.fn(),
     onRemoveExpense: vi.fn(),
     onChangeItemCategory: vi.fn(),
+    onAddExpense: vi.fn(),
   };
   render(
     <BudgetView
@@ -289,5 +290,50 @@ describe('BudgetView — item categories', () => {
 
     // Assert
     expect(screen.getByText('冷蔵庫に2品を登録します')).toBeInTheDocument();
+  });
+});
+
+describe('BudgetView — manual entry', () => {
+  test('offers a way to record a spend without a receipt', () => {
+    renderView();
+    expect(screen.getByRole('button', { name: '手入力で追加' })).toBeInTheDocument();
+  });
+
+  test('opens the form when asked', () => {
+    renderView();
+    fireEvent.click(screen.getByRole('button', { name: '手入力で追加' }));
+    expect(screen.getByLabelText('金額')).toBeInTheDocument();
+  });
+
+  test('reports the entered spend and closes the form', () => {
+    // Arrange
+    const { onAddExpense } = renderView();
+    fireEvent.click(screen.getByRole('button', { name: '手入力で追加' }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '1200' } });
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    expect(onAddExpense).toHaveBeenCalledWith(expect.objectContaining({ total: 1200 }));
+    expect(screen.queryByLabelText('金額')).not.toBeInTheDocument();
+  });
+
+  test('closes the form without recording when cancelled', () => {
+    // Arrange
+    const { onAddExpense } = renderView();
+    fireEvent.click(screen.getByRole('button', { name: '手入力で追加' }));
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
+
+    // Assert
+    expect(onAddExpense).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('金額')).not.toBeInTheDocument();
+  });
+
+  test('hides the manual entry button while a receipt is awaiting confirmation', () => {
+    renderView({ pendingReceipt: receipt() });
+    expect(screen.queryByRole('button', { name: '手入力で追加' })).not.toBeInTheDocument();
   });
 });
