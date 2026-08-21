@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { usePersistentList } from './persist';
+import { usePersistentList, usePersistentValue } from './persist';
 import { getUserId, peekUserId, resetUserId } from './userId';
 
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
@@ -11,6 +11,35 @@ const sanitizeFridgeItems = (list) =>
 
 const sanitizeSearches = (list) =>
   list.filter((h) => isFilledString(h?.id) && Array.isArray(h?.recipes));
+
+// 支出レコード。id・date・total が揃っていないものは画面へ流さない。
+const sanitizeExpenses = (list) =>
+  list
+    .filter(
+      (e) =>
+        isFilledString(e?.id) &&
+        isFilledString(e?.date) &&
+        Number.isFinite(Number(e?.total))
+    )
+    .map((e) => ({
+      ...e,
+      total: Number(e.total),
+      items: Array.isArray(e.items) ? e.items : [],
+    }));
+
+// 月予算は 0 以上の数値のみ。0 は「未設定」を意味する。
+const sanitizeLimit = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+export function useMonthlyLimit() {
+  return usePersistentValue('budget:limit', 0, sanitizeLimit);
+}
+
+export function useExpenses() {
+  return usePersistentList('budget:expenses', sanitizeExpenses);
+}
 
 export function useFridge() {
   return usePersistentList('fridge:items', sanitizeFridgeItems);

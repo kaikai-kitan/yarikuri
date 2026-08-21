@@ -1,12 +1,36 @@
 import { checkRateLimit } from './_ratelimit.js';
+import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
 
-const MODEL = 'claude-haiku-4-5';
+const yen = (n) => `${Math.round(n).toLocaleString('ja-JP')}円`;
 
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
-  });
+// 家計サマリーをプロンプト用のテキストにする。未設定なら空文字。
+function budgetBlock(budget) {
+  if (!budget || typeof budget !== 'object') return '';
+  const remaining = Number(budget.remaining);
+  const daysLeft = Number(budget.daysLeft);
+  const daily = Number(budget.dailyAllowance);
+  if (!Number.isFinite(remaining) || !Number.isFinite(daysLeft) || daysLeft <= 0) return '';
+
+  if (remaining <= 0) {
+    return `
+
+【今月の家計】
+・今月の予算はすでに超過しています（${yen(remaining)}）。
+・今月の残り日数: ${daysLeft}日
+
+買い足しをできる限り避け、冷蔵庫にあるものと特売品だけで作れるレシピを優先してください。
+不足食材はゼロ、または最小限にしてください。`;
+  }
+
+  return `
+
+【今月の家計】
+・残り予算: ${yen(remaining)}
+・今月の残り日数: ${daysLeft}日
+・1日あたりの目安: ${yen(daily)}
+
+1食分の材料費（totalCost）がこの1日あたりの目安に収まるレシピを優先してください。
+不足食材を買い足す場合も、その概算費用の合計が目安を超えないようにしてください。`;
 }
 
 export async function onRequestPost(context) {
@@ -29,7 +53,7 @@ export async function onRequestPost(context) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
-  const { fridge = [], flyerItems = [] } = body || {};
+  const { fridge = [], flyerItems = [], budget = null } = body || {};
   if (!Array.isArray(fridge) || !Array.isArray(flyerItems)) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
@@ -44,22 +68,14 @@ export async function onRequestPost(context) {
     : '（なし）';
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2000,
-        system:
-          'あなたは節約レシピのプロです。家庭にある食材と特売品を最大限活用した、安くて作りやすい家庭料理を提案してください。出力は必ず指定されたJSON形式のみで、余計な説明や前置きを含めないでください。',
-        messages: [
-          {
-            role: 'user',
-            content: `以下の食材を使って、なるべく安く作れる家庭料理を3つ提案してください。
+    const upstream = await callAnthropic(apiKey, {
+      max_tokens: 2000,
+      system:
+        'あなたは節約レシピのプロです。家庭にある食材と特売品を最大限活用した、安くて作りやすい家庭料理を提案してください。出力は必ず指定されたJSON形式のみで、余計な説明や前置きを含めないでください。',
+      messages: [
+        {
+          role: 'user',
+          content: `以下の食材を使って、なるべく安く作れる家庭料理を3つ提案してください。
 特売品を最大限活用し、不足食材が少ない順に並べてください。
 
 【冷蔵庫の食材・調味料】
@@ -67,6 +83,7 @@ ${fridgeText}
 
 【今日の特売品】
 ${flyerText}
+${budgetBlock(budget)}
 
 以下のJSON配列形式のみで回答してください:
 [
@@ -84,9 +101,8 @@ ${flyerText}
 
 冷蔵庫が空でも特売品中心で作れるレシピを提案してください。
 両方とも空なら空配列 [] を返してください。`,
-          },
-        ],
-      }),
+        },
+      ],
     });
 
     if (!upstream.ok) {
@@ -95,12 +111,7 @@ ${flyerText}
       return json({ error: 'AI提案サービスからエラーが返されました' }, 502);
     }
 
-    const data = await upstream.json();
-    const text = (data.content || [])
-      .map((b) => (b.type === 'text' ? b.text : ''))
-      .join('\n');
-
-    const recipes = parseJsonArray(text);
+    const recipes = parseJsonArray(textOf(await upstream.json()));
     if (recipes === null) {
       return json({ error: '提案結果のフォーマットが不正です' }, 500);
     }
@@ -112,15 +123,3 @@ ${flyerText}
   }
 }
 
-function parseJsonArray(text) {
-  try {
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const start = cleaned.search(/\[/);
-    const end = cleaned.lastIndexOf(']');
-    if (start === -1 || end === -1) return null;
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}

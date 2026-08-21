@@ -1,13 +1,5 @@
 import { checkRateLimit } from './_ratelimit.js';
-
-const MODEL = 'claude-haiku-4-5';
-
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
-  });
-}
+import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -35,33 +27,25 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1500,
-        system:
-          'あなたはチラシ画像から食材・調味料の特売情報を正確に抽出するアシスタントです。出力は必ず指定されたJSON形式のみで、余計な説明や前置きを含めないでください。',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType || 'image/jpeg',
-                  data: imageBase64,
-                },
+    const upstream = await callAnthropic(apiKey, {
+      max_tokens: 1500,
+      system:
+        'あなたはチラシ画像から食材・調味料の特売情報を正確に抽出するアシスタントです。出力は必ず指定されたJSON形式のみで、余計な説明や前置きを含めないでください。',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType || 'image/jpeg',
+                data: imageBase64,
               },
-              {
-                type: 'text',
-                text: `このスーパーのチラシ画像から特売品を抽出してください。
+            },
+            {
+              type: 'text',
+              text: `このスーパーのチラシ画像から特売品を抽出してください。
 食品・食材・調味料のみが対象です（雑貨や日用品は除外）。
 
 以下のJSON配列形式のみで回答してください:
@@ -70,11 +54,10 @@ export async function onRequestPost(context) {
 ]
 
 価格が読み取れない商品はスキップ。重複は1つにまとめてください。`,
-              },
-            ],
-          },
-        ],
-      }),
+            },
+          ],
+        },
+      ],
     });
 
     if (!upstream.ok) {
@@ -83,12 +66,7 @@ export async function onRequestPost(context) {
       return json({ error: 'AI解析サービスからエラーが返されました' }, 502);
     }
 
-    const data = await upstream.json();
-    const text = (data.content || [])
-      .map((b) => (b.type === 'text' ? b.text : ''))
-      .join('\n');
-
-    const items = parseJsonArray(text);
+    const items = parseJsonArray(textOf(await upstream.json()));
     if (!items) {
       return json({ error: '解析結果のフォーマットが不正です' }, 500);
     }
@@ -114,15 +92,3 @@ export async function onRequestPost(context) {
   }
 }
 
-function parseJsonArray(text) {
-  try {
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const start = cleaned.search(/\[/);
-    const end = cleaned.lastIndexOf(']');
-    if (start === -1 || end === -1) return null;
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}

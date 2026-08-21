@@ -1,13 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Refrigerator, ChefHat } from 'lucide-react';
+import { Home, Refrigerator, ChefHat, Wallet } from 'lucide-react';
 import { COLORS } from '../theme';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: Home },
   { href: '/fridge/', label: '冷蔵庫', icon: Refrigerator },
   { href: '/recipes/', label: 'レシピ', icon: ChefHat },
+  { href: '/budget/', label: '家計簿', icon: Wallet },
 ];
 
 export default function AppNav() {
@@ -22,7 +23,7 @@ export default function AppNav() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-4">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname === href.replace(/\/$/, '');
           return (

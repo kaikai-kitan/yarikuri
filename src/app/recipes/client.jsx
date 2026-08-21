@@ -6,7 +6,8 @@ import RecipeDetail from '@/components/RecipeDetail';
 import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
-import { useFridge, useHistory } from '@/lib/hooks';
+import { useFridge, useHistory, useMonthlyLimit, useExpenses } from '@/lib/hooks';
+import { budgetSummary } from '@/lib/budget';
 import { newId } from '@/lib/id';
 import { ocrFlyer, suggestRecipes } from '@/lib/api';
 import { compressImage } from '@/lib/image';
@@ -15,6 +16,8 @@ import { COLORS } from '@/theme';
 export default function RecipesPageClient() {
   const [fridge, , fridgeReady] = useFridge();
   const [, pushHistory, historyReady] = useHistory();
+  const [monthlyLimit, , limitReady] = useMonthlyLimit();
+  const [expenses, , expensesReady] = useExpenses();
 
   const [currentRecipes, setCurrentRecipes] = useState([]);
   const [currentMeta, setCurrentMeta] = useState(null);
@@ -24,7 +27,7 @@ export default function RecipesPageClient() {
   const [recipeOpen, setRecipeOpen] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const ready = fridgeReady && historyReady;
+  const ready = fridgeReady && historyReady && limitReady && expensesReady;
 
   useEffect(() => {
     try {
@@ -66,7 +69,7 @@ export default function RecipesPageClient() {
         const flyerItems = await ocrFlyer(base64, mediaType);
         if (!flyerItems.length) { showToast('特売品を検出できませんでした', 'error'); setSearching(null); return; }
         const fridgeNames = fridge.map((f) => f.name);
-        const recipes = await suggestRecipes(fridgeNames, flyerItems);
+        const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses));
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'flyer', fridgeUsed: fridgeNames, flyerItems, recipes };
         pushHistory(entry);
@@ -77,7 +80,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '検索に失敗しました', 'error');
       } finally { setSearching(null); }
     });
-  }, [fridge, pushHistory]);
+  }, [fridge, pushHistory, monthlyLimit, expenses]);
 
   const searchFromFridge = useCallback(() => {
     if (fridge.length === 0) { showToast('冷蔵庫タブで食材を追加してください', 'error'); return; }
@@ -87,7 +90,7 @@ export default function RecipesPageClient() {
       setCurrentMeta(null);
       try {
         const fridgeNames = fridge.map((f) => f.name);
-        const recipes = await suggestRecipes(fridgeNames, []);
+        const recipes = await suggestRecipes(fridgeNames, [], budgetContext(monthlyLimit, expenses));
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'fridge', fridgeUsed: fridgeNames, flyerItems: null, recipes };
         pushHistory(entry);
@@ -98,7 +101,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '検索に失敗しました', 'error');
       } finally { setSearching(null); }
     });
-  }, [fridge, pushHistory]);
+  }, [fridge, pushHistory, monthlyLimit, expenses]);
 
   if (!ready) {
     return (
@@ -125,4 +128,11 @@ export default function RecipesPageClient() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>
   );
+}
+
+// 予算が未設定なら null を返し、AI側の予算ブロックを省かせる。
+function budgetContext(monthlyLimit, expenses) {
+  const s = budgetSummary({ monthlyLimit, expenses });
+  if (!s.hasLimit) return null;
+  return { remaining: s.remaining, daysLeft: s.daysLeft, dailyAllowance: s.dailyAllowance };
 }

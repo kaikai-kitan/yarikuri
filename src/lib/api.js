@@ -14,11 +14,29 @@ export async function ocrFlyer(imageBase64, mediaType) {
   return data.items || [];
 }
 
-export async function suggestRecipes(fridge, flyerItems) {
+// レシート画像から店名・日付・合計・品目（食材判定つき）を読み取る。
+export async function ocrReceipt(imageBase64, mediaType) {
+  const res = await fetch('/api/ocr-receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64, mediaType }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `レシート解析失敗 (${res.status})`);
+  }
+  if (!data.receipt) {
+    throw new Error('レシートを読み取れませんでした');
+  }
+  return data.receipt;
+}
+
+// budget を渡すと、予算内に収まる提案をAIに指示する。
+export async function suggestRecipes(fridge, flyerItems, budget = null) {
   const res = await fetch('/api/suggest-recipes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fridge, flyerItems }),
+    body: JSON.stringify({ fridge, flyerItems, budget: budget ?? null }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
