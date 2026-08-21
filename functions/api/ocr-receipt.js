@@ -1,10 +1,6 @@
 import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonObject } from './_ai.js';
-
-const MAX_ITEMS = 60;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
+import { normalizeReceipt } from './_receipt.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -48,9 +44,12 @@ export async function onRequestPost(context) {
               type: 'text',
               text: `このレシート画像から店名・購入日・合計金額・購入品を読み取ってください。
 
-各品目について、冷蔵庫で管理する食材または調味料かどうかを isFood で判定してください。
-食材・調味料（肉、魚、野菜、卵、乳製品、豆腐、米、麺、しょうゆ、みそ、砂糖など）は true。
-日用品・雑貨・惣菜以外の加工品でない品（洗剤、ティッシュ、雑誌、電池など）は false。
+各品目を次の3つのいずれかに分類し、category に入れてください。
+・food  … 冷蔵庫で管理する食材・調味料（肉、魚、野菜、卵、乳製品、豆腐、米、麺、しょうゆ、みそ、砂糖など）
+・daily … 日用品・生活雑貨（洗剤、ティッシュ、洗面用品、電池、ゴミ袋など）
+・other … 上記以外（雑誌、医薬品、その場で食べる惣菜・弁当、たばこ、酒類など）
+
+判断に迷う場合は other にしてください。
 
 品目名は冷蔵庫に登録して読みやすい一般名に正規化してください（例：「北海道産牛乳1L」→「牛乳」）。
 値引き行・小計・ポイントなどの品目でない行は含めないでください。
@@ -61,7 +60,7 @@ export async function onRequestPost(context) {
   "date": "購入日 YYYY-MM-DD（不明なら空文字）",
   "total": 合計金額の数値（円）,
   "items": [
-    { "name": "品目名", "price": 価格の数値（円）, "isFood": true または false }
+    { "name": "品目名", "price": 価格の数値（円）, "category": "food" または "daily" または "other" }
   ]
 }`,
             },
@@ -88,26 +87,3 @@ export async function onRequestPost(context) {
   }
 }
 
-// AI の出力をそのまま信用せず、保存できる形に整える。
-function normalizeReceipt(parsed) {
-  const items = (Array.isArray(parsed.items) ? parsed.items : [])
-    .filter((i) => i && typeof i.name === 'string' && i.name.trim() && Number.isFinite(Number(i.price)))
-    .slice(0, MAX_ITEMS)
-    .map((i) => ({
-      name: String(i.name).slice(0, 40).trim(),
-      price: Math.round(Number(i.price)),
-      isFood: i.isFood === true,
-    }));
-
-  const itemsTotal = items.reduce((sum, i) => sum + i.price, 0);
-  const reported = Number(parsed.total);
-  const date = typeof parsed.date === 'string' && DATE_PATTERN.test(parsed.date) ? parsed.date : todayIso();
-
-  return {
-    store: typeof parsed.store === 'string' ? parsed.store.slice(0, 30).trim() : '',
-    date,
-    // 合計が読めなかった場合は品目の合計で代用する
-    total: Number.isFinite(reported) && reported > 0 ? Math.round(reported) : itemsTotal,
-    items,
-  };
-}
