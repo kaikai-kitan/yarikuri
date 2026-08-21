@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { Refrigerator, Plus, X } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
+import { isSubmitKey } from '../lib/keyboard';
 
 const SUGGESTIONS = [
   '卵',
@@ -50,7 +51,7 @@ export default function FridgeView({ items, onAdd, onRemove }) {
           ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onKeyDown={(e) => isSubmitKey(e) && submit()}
           placeholder="例：玉ねぎ、しょうゆ"
           className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
           style={{ color: COLORS.ink, fontFamily: FONT_BODY }}

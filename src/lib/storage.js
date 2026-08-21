@@ -13,8 +13,23 @@ export async function loadList(key) {
 }
 
 export async function saveList(key, list) {
+  return saveValue(key, list);
+}
+
+// 配列以外の単一値（数値・オブジェクト等）用。未保存・破損時は null。
+export async function loadValue(key) {
   try {
-    localStorage.setItem(key, JSON.stringify(list));
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveValue(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
   } catch (e) {
     console.error('storage save failed:', e);
   }

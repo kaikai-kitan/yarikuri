@@ -7,6 +7,7 @@ import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
 import { useFridge, useHistory } from '@/lib/hooks';
+import { newId } from '@/lib/id';
 import { ocrFlyer, suggestRecipes } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { COLORS } from '@/theme';
@@ -67,7 +68,7 @@ export default function RecipesPageClient() {
         const fridgeNames = fridge.map((f) => f.name);
         const recipes = await suggestRecipes(fridgeNames, flyerItems);
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
-        const entry = { id: crypto.randomUUID(), searchedAt: Date.now(), source: 'flyer', fridgeUsed: fridgeNames, flyerItems, recipes };
+        const entry = { id: newId(), searchedAt: Date.now(), source: 'flyer', fridgeUsed: fridgeNames, flyerItems, recipes };
         pushHistory(entry);
         setCurrentRecipes(recipes);
         setCurrentMeta({ source: 'flyer', flyerCount: flyerItems.length, fridgeCount: fridgeNames.length });
@@ -88,7 +89,7 @@ export default function RecipesPageClient() {
         const fridgeNames = fridge.map((f) => f.name);
         const recipes = await suggestRecipes(fridgeNames, []);
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
-        const entry = { id: crypto.randomUUID(), searchedAt: Date.now(), source: 'fridge', fridgeUsed: fridgeNames, flyerItems: null, recipes };
+        const entry = { id: newId(), searchedAt: Date.now(), source: 'fridge', fridgeUsed: fridgeNames, flyerItems: null, recipes };
         pushHistory(entry);
         setCurrentRecipes(recipes);
         setCurrentMeta({ source: 'fridge', flyerCount: 0, fridgeCount: fridgeNames.length });

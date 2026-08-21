@@ -1,45 +1,23 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { loadList, saveList } from './storage';
+import { usePersistentList } from './persist';
+
+const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
+
+// 保存済みデータの検証ルール。壊れた要素は捨て、欠けたフラグだけ補う。
+const sanitizeFridgeItems = (list) =>
+  list.filter((f) => isFilledString(f?.id) && isFilledString(f?.name));
+
+const sanitizeSearches = (list) =>
+  list.filter((h) => isFilledString(h?.id) && Array.isArray(h?.recipes));
 
 export function useFridge() {
-  const [items, setItems] = useState([]);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    loadList('fridge:items').then((f) => {
-      setItems(f);
-      setReady(true);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (ready) saveList('fridge:items', items);
-  }, [items, ready]);
-
-  return [items, setItems, ready];
+  return usePersistentList('fridge:items', sanitizeFridgeItems);
 }
 
 export function useHistory(limit = 3) {
-  const [items, setItems] = useState([]);
-  const [ready, setReady] = useState(false);
+  const [items, setItems, ready] = usePersistentList('history:searches', sanitizeSearches);
 
-  useEffect(() => {
-    loadList('history:searches').then((h) => {
-      setItems(h);
-      setReady(true);
-    });
-  }, []);
-
-  const push = (entry) => {
-    const next = [entry, ...items].slice(0, limit);
-    setItems(next);
-    saveList('history:searches', next);
-  };
-
-  useEffect(() => {
-    if (ready) saveList('history:searches', items);
-  }, [items, ready]);
+  const push = (entry) => setItems([entry, ...items].slice(0, limit));
 
   return [items, push, ready];
 }

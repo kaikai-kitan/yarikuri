@@ -3,7 +3,10 @@
 // もう片方が残るようにしている。完全な防御ではない（プライベート
 // ブラウズで回避可）が、サーバーIPレート制限と併用して多層防御。
 
+import { readCookie, writeCookie } from './cookie';
+
 const DAILY_FREE_LIMIT = 1;
+const COOKIE_DAYS = 2;
 const STORAGE_KEY = 'yarikuri:quota:v1';
 const COOKIE_KEY = 'yarikuri_quota';
 
@@ -11,22 +14,6 @@ function todayKey() {
   const d = new Date();
   // JST基準で日付を出す（ローカルタイム）
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-}
-
-function readCookie(name) {
-  if (typeof document === 'undefined') return null;
-  const m = document.cookie.match(
-    new RegExp('(^| )' + name + '=([^;]+)')
-  );
-  return m ? decodeURIComponent(m[2]) : null;
-}
-
-function writeCookie(name, value, days = 2) {
-  if (typeof document === 'undefined') return;
-  const expires = new Date(Date.now() + days * 86400 * 1000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(
-    value
-  )}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 function readRaw() {
@@ -47,7 +34,7 @@ function writeRaw(obj) {
   try {
     localStorage.setItem(STORAGE_KEY, json);
   } catch {}
-  writeCookie(COOKIE_KEY, json);
+  writeCookie(COOKIE_KEY, json, COOKIE_DAYS);
 }
 
 function freshState() {
