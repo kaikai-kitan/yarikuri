@@ -33,6 +33,7 @@ const renderView = (props = {}) => {
     onRemoveExpense: vi.fn(),
     onChangeItemCategory: vi.fn(),
     onAddExpense: vi.fn(),
+    onUpdateExpense: vi.fn(),
   };
   render(
     <BudgetView
@@ -335,5 +336,76 @@ describe('BudgetView — manual entry', () => {
   test('hides the manual entry button while a receipt is awaiting confirmation', () => {
     renderView({ pendingReceipt: receipt() });
     expect(screen.queryByRole('button', { name: '手入力で追加' })).not.toBeInTheDocument();
+  });
+});
+
+describe('BudgetView — editing a record', () => {
+  const record = (overrides = {}) => ({
+    id: 'e-1',
+    date: '2026-08-10',
+    store: 'スーパーA',
+    total: 3240,
+    category: 'food',
+    items: [{ name: '牛乳', price: 198, category: 'food' }],
+    createdAt: 1,
+    ...overrides,
+  });
+
+  test('opens an edit form prefilled from the record', () => {
+    // Arrange
+    renderView({ expenses: [record()] });
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーA を編集' }));
+
+    // Assert
+    expect(screen.getByLabelText('金額')).toHaveValue('3240');
+    expect(screen.getByLabelText('店名')).toHaveValue('スーパーA');
+    expect(screen.getByLabelText('日付')).toHaveValue('2026-08-10');
+  });
+
+  test('reports the corrected values with the record id', () => {
+    // Arrange
+    const { onUpdateExpense } = renderView({ expenses: [record()] });
+    fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーA を編集' }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '2980' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+
+    // Assert
+    expect(onUpdateExpense).toHaveBeenCalledWith('e-1', expect.objectContaining({ total: 2980 }));
+    expect(screen.queryByLabelText('金額')).not.toBeInTheDocument();
+  });
+
+  test('leaves the record untouched when the edit is cancelled', () => {
+    // Arrange
+    const { onUpdateExpense } = renderView({ expenses: [record()] });
+    fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーA を編集' }));
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
+
+    // Assert
+    expect(onUpdateExpense).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '2026-08-10 スーパーA を編集' })).toBeInTheDocument();
+  });
+
+  test('edits only the record that was opened', () => {
+    // Arrange
+    renderView({ expenses: [record(), record({ id: 'e-2', store: 'スーパーB', total: 500 })] });
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーB を編集' }));
+
+    // Assert
+    expect(screen.getByLabelText('金額')).toHaveValue('500');
+    expect(screen.getByRole('button', { name: '2026-08-10 スーパーA を編集' })).toBeInTheDocument();
+  });
+
+  test('still allows deleting a record that is not being edited', () => {
+    const { onRemoveExpense } = renderView({ expenses: [record()] });
+    fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーA の記録を削除' }));
+    expect(onRemoveExpense).toHaveBeenCalledWith('e-1');
   });
 });

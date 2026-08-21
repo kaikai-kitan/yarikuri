@@ -255,4 +255,50 @@ describe('BudgetPageClient', () => {
     await waitFor(() => expect(stored('budget:expenses')).toHaveLength(1));
     expect(stored('fridge:items')).toEqual([]);
   });
+
+  test('recalculates the remaining budget after an edit', async () => {
+    // Arrange
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('budget:limit', JSON.stringify(30000));
+    localStorage.setItem(
+      'budget:expenses',
+      JSON.stringify([
+        { id: 'e-1', date: today, store: 'スーパーA', total: 3240, category: 'food', items: [], createdAt: 1 },
+      ])
+    );
+    render(<BudgetPageClient />);
+    fireEvent.click(await screen.findByRole('button', { name: `${today} スーパーA を編集` }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '2000' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('budget:expenses')[0].total).toBe(2000));
+    expect(await screen.findByText('¥28,000')).toBeInTheDocument();
+  });
+
+  test('keeps the scanned items when only the total is corrected', async () => {
+    // Arrange
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(
+      'budget:expenses',
+      JSON.stringify([
+        {
+          id: 'e-1', date: today, store: 'スーパーA', total: 3240, category: 'food',
+          items: [{ name: '牛乳', price: 198, category: 'food' }], createdAt: 1,
+        },
+      ])
+    );
+    render(<BudgetPageClient />);
+    fireEvent.click(await screen.findByRole('button', { name: `${today} スーパーA を編集` }));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: '2980' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('budget:expenses')[0].total).toBe(2980));
+    expect(stored('budget:expenses')[0].items).toEqual([{ name: '牛乳', price: 198, category: 'food' }]);
+  });
 });

@@ -86,6 +86,12 @@ export default function BudgetPageClient() {
       ),
     });
 
+  // 訂正。品目（レシートの読み取り結果）はそのまま残す。
+  const updateExpense = (id, { total, store, date, category }) =>
+    setExpenses(
+      expenses.map((e) => (e.id === id ? { ...e, total, store, date, category } : e))
+    );
+
   const removeExpense = (id) => setExpenses(expenses.filter((e) => e.id !== id));
 
   if (!ready) {
@@ -121,6 +127,7 @@ export default function BudgetPageClient() {
         onRemoveExpense={removeExpense}
         onChangeItemCategory={changeItemCategory}
         onAddExpense={addExpense}
+        onUpdateExpense={updateExpense}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>

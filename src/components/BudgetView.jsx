@@ -23,10 +23,12 @@ export default function BudgetView({
   onRemoveExpense,
   onChangeItemCategory,
   onAddExpense,
+  onUpdateExpense,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const showForm = !summary.hasLimit || editing;
 
@@ -213,33 +215,51 @@ export default function BudgetView({
         />
       ) : (
         <ul className="space-y-2">
-          {[...expenses].sort(byDateDesc).map((e) => (
-            <li
-              key={e.id}
-              className="rounded-xl flex items-center gap-3 px-4 py-3 fade-up"
-              style={{ background: COLORS.paper, border: `1px solid ${COLORS.border}` }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" style={{ color: COLORS.ink }}>
-                  <span data-testid="expense-store">{e.store || '店名なし'}</span>
-                </div>
-                <div className="text-[11px]" style={{ color: COLORS.inkSoft }}>
-                  {e.date}・{e.items.length}品
-                </div>
-              </div>
-              <span className="text-sm font-bold" style={{ color: COLORS.ink }}>
-                {yen(e.total)}
-              </span>
-              <button
-                onClick={() => onRemoveExpense(e.id)}
-                className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                style={{ color: COLORS.inkSoft }}
-                aria-label={`${e.date} ${e.store || '店名なし'} の記録を削除`}
+          {[...expenses].sort(byDateDesc).map((e) =>
+            editingId === e.id ? (
+              <li key={e.id}>
+                <ExpenseForm
+                  initial={{ total: e.total, store: e.store, date: e.date, category: categoryOf(e) }}
+                  submitLabel="保存する"
+                  onSubmit={(values) => {
+                    onUpdateExpense(e.id, values);
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              </li>
+            ) : (
+              <li
+                key={e.id}
+                className="rounded-xl flex items-center gap-3 px-4 py-3 fade-up"
+                style={{ background: COLORS.paper, border: `1px solid ${COLORS.border}` }}
               >
-                <X size={16} />
-              </button>
-            </li>
-          ))}
+                <button
+                  onClick={() => setEditingId(e.id)}
+                  className="flex-1 min-w-0 text-left"
+                  aria-label={`${e.date} ${e.store || '店名なし'} を編集`}
+                >
+                  <div className="text-sm font-medium truncate" style={{ color: COLORS.ink }}>
+                    <span data-testid="expense-store">{e.store || '店名なし'}</span>
+                  </div>
+                  <div className="text-[11px]" style={{ color: COLORS.inkSoft }}>
+                    {e.date}・{e.items.length}品
+                  </div>
+                </button>
+                <span className="text-sm font-bold" style={{ color: COLORS.ink }}>
+                  {yen(e.total)}
+                </span>
+                <button
+                  onClick={() => onRemoveExpense(e.id)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ color: COLORS.inkSoft }}
+                  aria-label={`${e.date} ${e.store || '店名なし'} の記録を削除`}
+                >
+                  <X size={16} />
+                </button>
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>
