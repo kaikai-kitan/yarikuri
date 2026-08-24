@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import RecipesView from '@/components/RecipesView';
+import WeekPlanView from '@/components/WeekPlanView';
 import RecipeDetail from '@/components/RecipeDetail';
 import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
@@ -141,6 +142,9 @@ export default function RecipesPageClient() {
         onSearchFromFlyer={searchFromFlyer}
         onSearchFromFridge={searchFromFridge}
         onPlanWeek={createWeekPlan}
+        planSlot={
+          weekPlan ? <WeekPlanView plan={weekPlan} onClearPlan={() => setWeekPlan(null)} /> : null
+        }
         onOpenRecipe={setRecipeOpen}
         fridgeCount={fridge.length}
         expiringNames={expiringSoonNames(fridge)}

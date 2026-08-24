@@ -15,6 +15,7 @@ export default function RecipesView({
   fridgeCount,
   adSlot,
   expiringNames = [],
+  planSlot = null,
 }) {
   const fileRef = useRef(null);
 
@@ -151,6 +152,8 @@ export default function RecipesView({
           </div>
         </button>
       </div>
+
+      {planSlot}
 
       {/* Results */}
       {currentRecipes.length === 0 ? (

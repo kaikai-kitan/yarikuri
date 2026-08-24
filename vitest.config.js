@@ -39,6 +39,7 @@ export default defineConfig({
         'functions/api/_plan.js',
         'functions/api/_prompt.js',
         'src/components/RecipesView.jsx',
+        'src/components/WeekPlanView.jsx',
         'src/components/FridgeView.jsx',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
