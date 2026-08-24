@@ -12,6 +12,8 @@ import {
   CATEGORIES,
   CATEGORY_LABELS,
   normalizeLimit,
+  projectMonthEnd,
+  MIN_DAYS_FOR_PROJECTION,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -442,5 +444,98 @@ describe('budgetSummary — category breakdown', () => {
       now,
     });
     expect(s.categories.food.spent).toBe(0);
+  });
+});
+
+describe('projectMonthEnd', () => {
+  test('projects the month-end total from the pace so far', () => {
+    // 10日で10,000円 → 31日なら31,000円
+    const p = projectMonthEnd({ spent: 10000, elapsedDays: 10, totalDays: 31 });
+    expect(p.available).toBe(true);
+    expect(p.projected).toBe(31000);
+  });
+
+  test('rounds the projection to whole yen', () => {
+    // 21日で20,000円 → 20000/21*31 = 29523.8...
+    expect(projectMonthEnd({ spent: 20000, elapsedDays: 21, totalDays: 31 }).projected).toBe(29524);
+  });
+
+  test('gives no projection in the first days of the month', () => {
+    // 標本が少なすぎて外れるため、経過日数が MIN_DAYS_FOR_PROJECTION 未満では出さない
+    for (const elapsedDays of [1, 2]) {
+      expect(projectMonthEnd({ spent: 5000, elapsedDays, totalDays: 31 }).available).toBe(false);
+    }
+    expect(MIN_DAYS_FOR_PROJECTION).toBe(3);
+  });
+
+  test('starts projecting once enough of the month has passed', () => {
+    expect(projectMonthEnd({ spent: 3000, elapsedDays: 3, totalDays: 30 }).available).toBe(true);
+  });
+
+  test('flags a pace that will break the budget', () => {
+    // Arrange & Act
+    const p = projectMonthEnd({ spent: 20000, elapsedDays: 10, totalDays: 30, limit: 30000 });
+
+    // Assert
+    expect(p.projected).toBe(60000);
+    expect(p.willExceed).toBe(true);
+    expect(p.overBy).toBe(30000);
+  });
+
+  test('does not flag a pace that stays inside the budget', () => {
+    const p = projectMonthEnd({ spent: 5000, elapsedDays: 10, totalDays: 30, limit: 30000 });
+    expect(p.willExceed).toBe(false);
+    expect(p.overBy).toBe(0);
+  });
+
+  test('does not flag a pace that lands exactly on the budget', () => {
+    const p = projectMonthEnd({ spent: 10000, elapsedDays: 10, totalDays: 30, limit: 30000 });
+    expect(p.projected).toBe(30000);
+    expect(p.willExceed).toBe(false);
+  });
+
+  test('cannot flag anything when no budget is set', () => {
+    const p = projectMonthEnd({ spent: 20000, elapsedDays: 10, totalDays: 30, limit: 0 });
+    expect(p.projected).toBe(60000);
+    expect(p.willExceed).toBe(false);
+  });
+
+  test('projects zero when nothing has been spent', () => {
+    const p = projectMonthEnd({ spent: 0, elapsedDays: 10, totalDays: 30, limit: 30000 });
+    expect(p.projected).toBe(0);
+    expect(p.willExceed).toBe(false);
+  });
+});
+
+describe('budgetSummary — month-end projection', () => {
+  const spend = (total) => expense({ id: 'e-1', date: '2026-08-05', total, items: [] });
+
+  test('includes a projection once the month is far enough along', () => {
+    // 2026-08-21: 21日経過 / 全31日
+    const s = budgetSummary({
+      monthlyLimit: 30000,
+      expenses: [spend(20000)],
+      now: new Date(2026, 7, 21),
+    });
+    expect(s.projection.available).toBe(true);
+    expect(s.projection.projected).toBe(29524);
+  });
+
+  test('withholds the projection at the start of the month', () => {
+    const s = budgetSummary({
+      monthlyLimit: 30000,
+      expenses: [spend(9000)],
+      now: new Date(2026, 7, 2),
+    });
+    expect(s.projection.available).toBe(false);
+  });
+
+  test('warns when the current pace will break the budget', () => {
+    const s = budgetSummary({
+      monthlyLimit: 30000,
+      expenses: [spend(25000)],
+      now: new Date(2026, 7, 20),
+    });
+    expect(s.projection.willExceed).toBe(true);
   });
 });

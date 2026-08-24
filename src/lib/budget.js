@@ -43,10 +43,17 @@ export function monthKey(date = new Date()) {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
 }
 
+// 月初は標本が少なく推定が大きく外れるため、この日数を過ぎるまで着地見込みを出さない。
+export const MIN_DAYS_FOR_PROJECTION = 3;
+
+// その月の日数。
+function daysInMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
 // 当日を含む、その月の残り日数。1日あたりの目安を出すのに使う。
 export function daysLeftInMonth(date = new Date()) {
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  return lastDay - date.getDate() + 1;
+  return daysInMonth(date) - date.getDate() + 1;
 }
 
 export function expensesInMonth(expenses, key) {
@@ -126,6 +133,31 @@ export function budgetSummary({ monthlyLimit, expenses, now = new Date() }) {
     dailyAllowance: remaining > 0 ? Math.floor(remaining / daysLeft) : 0,
     isOver: hasLimit && remaining < 0,
     categories: { food: breakdown('food'), daily: breakdown('daily') },
+    projection: projectMonthEnd({
+      spent,
+      elapsedDays: now.getDate(),
+      totalDays: daysInMonth(now),
+      limit: limits.total,
+    }),
+  };
+}
+
+// 今のペースが続いた場合の月末着地見込み。
+// 「1日あたりいくら使える」より行動に繋がるが、月初に出すと桁違いに外れるため
+// MIN_DAYS_FOR_PROJECTION を過ぎるまでは available: false を返す。
+export function projectMonthEnd({ spent, elapsedDays, totalDays, limit = 0 }) {
+  if (elapsedDays < MIN_DAYS_FOR_PROJECTION || totalDays <= 0) {
+    return { available: false, projected: 0, willExceed: false, overBy: 0 };
+  }
+
+  const projected = Math.round((Number(spent) || 0) / elapsedDays * totalDays);
+  const willExceed = limit > 0 && projected > limit;
+
+  return {
+    available: true,
+    projected,
+    willExceed,
+    overBy: willExceed ? projected - limit : 0,
   };
 }
 
