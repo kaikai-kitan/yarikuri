@@ -11,6 +11,7 @@ import {
   totalByCategory,
   CATEGORIES,
   CATEGORY_LABELS,
+  normalizeLimit,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -336,5 +337,110 @@ describe('totalByCategory — expense level category', () => {
   test('still books the remainder to other when the expense has no category', () => {
     const list = [expense({ id: 'e-1', items: [{ name: '牛乳', price: 300, category: 'food' }], total: 500 })];
     expect(totalByCategory(list)).toEqual({ food: 300, daily: 0, other: 200 });
+  });
+});
+
+describe('normalizeLimit', () => {
+  test('migrates a plain number from before allocations existed', () => {
+    expect(normalizeLimit(30000)).toEqual({ total: 30000, food: 0, daily: 0 });
+  });
+
+  test('keeps a well-formed allocation', () => {
+    expect(normalizeLimit({ total: 30000, food: 20000, daily: 5000 }))
+      .toEqual({ total: 30000, food: 20000, daily: 5000 });
+  });
+
+  test('allows an allocation that exactly fills the budget', () => {
+    expect(normalizeLimit({ total: 30000, food: 25000, daily: 5000 }))
+      .toEqual({ total: 30000, food: 25000, daily: 5000 });
+  });
+
+  test('discards an allocation that exceeds the budget, keeping the total', () => {
+    expect(normalizeLimit({ total: 30000, food: 28000, daily: 5000 }))
+      .toEqual({ total: 30000, food: 0, daily: 0 });
+  });
+
+  test('treats missing or negative parts as zero', () => {
+    expect(normalizeLimit({ total: 30000, food: -100 }))
+      .toEqual({ total: 30000, food: 0, daily: 0 });
+  });
+
+  test('falls back to an unset budget for junk', () => {
+    expect(normalizeLimit(undefined)).toEqual({ total: 0, food: 0, daily: 0 });
+    expect(normalizeLimit('たくさん')).toEqual({ total: 0, food: 0, daily: 0 });
+    expect(normalizeLimit(-500)).toEqual({ total: 0, food: 0, daily: 0 });
+  });
+});
+
+describe('budgetSummary — category breakdown', () => {
+  const now = new Date(2026, 7, 21);
+
+  const receipt = (id, total, items) =>
+    expense({ id, date: '2026-08-05', total, items });
+
+  test('reports the remaining budget per allocated category', () => {
+    // Arrange
+    const expenses = [
+      receipt('e-1', 5000, [
+        { name: '肉', price: 3000, category: 'food' },
+        { name: '洗剤', price: 2000, category: 'daily' },
+      ]),
+    ];
+
+    // Act
+    const s = budgetSummary({
+      monthlyLimit: { total: 30000, food: 20000, daily: 5000 },
+      expenses,
+      now,
+    });
+
+    // Assert
+    expect(s.categories.food).toMatchObject({ limit: 20000, spent: 3000, remaining: 17000, hasLimit: true });
+    expect(s.categories.daily).toMatchObject({ limit: 5000, spent: 2000, remaining: 3000, hasLimit: true });
+  });
+
+  test('still reports the overall totals alongside the breakdown', () => {
+    const s = budgetSummary({
+      monthlyLimit: { total: 30000, food: 20000, daily: 5000 },
+      expenses: [receipt('e-1', 5000, [{ name: '肉', price: 5000, category: 'food' }])],
+      now,
+    });
+    expect(s.monthlyLimit).toBe(30000);
+    expect(s.spent).toBe(5000);
+    expect(s.remaining).toBe(25000);
+  });
+
+  test('marks a category with no allocation as unlimited', () => {
+    const s = budgetSummary({ monthlyLimit: 30000, expenses: [], now });
+    expect(s.categories.food.hasLimit).toBe(false);
+    expect(s.categories.daily.hasLimit).toBe(false);
+  });
+
+  test('reports spending per category even when nothing is allocated', () => {
+    const s = budgetSummary({
+      monthlyLimit: 30000,
+      expenses: [receipt('e-1', 3000, [{ name: '肉', price: 3000, category: 'food' }])],
+      now,
+    });
+    expect(s.categories.food.spent).toBe(3000);
+  });
+
+  test('flags a category that has gone over its allocation', () => {
+    const s = budgetSummary({
+      monthlyLimit: { total: 30000, food: 2000, daily: 0 },
+      expenses: [receipt('e-1', 3000, [{ name: '肉', price: 3000, category: 'food' }])],
+      now,
+    });
+    expect(s.categories.food.remaining).toBe(-1000);
+    expect(s.categories.food.isOver).toBe(true);
+  });
+
+  test('excludes other months from the category breakdown', () => {
+    const s = budgetSummary({
+      monthlyLimit: { total: 30000, food: 20000, daily: 0 },
+      expenses: [expense({ id: 'e-1', date: '2026-07-30', total: 9999, items: [{ name: '肉', price: 9999, category: 'food' }] })],
+      now,
+    });
+    expect(s.categories.food.spent).toBe(0);
   });
 });

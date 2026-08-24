@@ -8,6 +8,11 @@ import ExpenseForm from './ExpenseForm';
 
 const yen = (n) => `${n < 0 ? '-' : ''}¥${Math.abs(Math.round(n)).toLocaleString('ja-JP')}`;
 
+const allocationOf = (draft) => {
+  const value = Number(draft);
+  return draft.trim() && Number.isFinite(value) && value > 0 ? value : 0;
+};
+
 const byDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
 
 export default function BudgetView({
@@ -27,17 +32,39 @@ export default function BudgetView({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [foodDraft, setFoodDraft] = useState('');
+  const [dailyDraft, setDailyDraft] = useState('');
+  const [limitError, setLimitError] = useState(null);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   const showForm = !summary.hasLimit || editing;
 
   const submitLimit = () => {
-    const value = Number(draft);
-    if (!draft.trim() || !Number.isFinite(value) || value <= 0) return;
-    onSetLimit(value);
+    const total = Number(draft);
+    if (!draft.trim() || !Number.isFinite(total) || total <= 0) return;
+
+    const food = allocationOf(foodDraft);
+    const daily = allocationOf(dailyDraft);
+    if (food + daily > total) {
+      setLimitError('配分の合計が今月の予算を超えています');
+      return;
+    }
+
+    setLimitError(null);
+    onSetLimit({ total, food, daily });
     setDraft('');
+    setFoodDraft('');
+    setDailyDraft('');
     setEditing(false);
+  };
+
+  const startEditing = () => {
+    setDraft(summary.limits.total ? String(summary.limits.total) : '');
+    setFoodDraft(summary.limits.food ? String(summary.limits.food) : '');
+    setDailyDraft(summary.limits.daily ? String(summary.limits.daily) : '');
+    setLimitError(null);
+    setEditing(true);
   };
 
   const pickFile = (e) => {
@@ -95,6 +122,30 @@ export default function BudgetView({
                 設定
               </button>
             </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2.5">
+              <Allocation
+                id="budget-food"
+                label="食費の予算"
+                value={foodDraft}
+                onChange={setFoodDraft}
+              />
+              <Allocation
+                id="budget-daily"
+                label="日用品の予算"
+                value={dailyDraft}
+                onChange={setDailyDraft}
+              />
+            </div>
+            <p className="text-[10px] mt-1.5" style={{ color: COLORS.inkSoft }}>
+              内訳は任意です。設定すると食費の残額がレシピ提案に使われます。
+            </p>
+
+            {limitError && (
+              <p className="text-[11px] mt-2" style={{ color: COLORS.tomatoDeep }}>
+                {limitError}
+              </p>
+            )}
           </div>
         ) : (
           <div>
@@ -104,10 +155,7 @@ export default function BudgetView({
                 <span className="text-[10px] tracking-[0.2em]">MONTHLY BUDGET</span>
               </div>
               <button
-                onClick={() => {
-                  setDraft(String(summary.monthlyLimit));
-                  setEditing(true);
-                }}
+                onClick={startEditing}
                 className="text-[11px] underline"
                 style={{ color: COLORS.inkSoft }}
               >
@@ -133,6 +181,22 @@ export default function BudgetView({
               <p className="text-xs" style={{ color: COLORS.inkSoft }}>
                 1日あたり {yen(summary.dailyAllowance)}（残り{summary.daysLeft}日）
               </p>
+            )}
+
+            {(summary.categories.food.hasLimit || summary.categories.daily.hasLimit) && (
+              <dl className="mt-3 pt-3 grid gap-1" style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                {CATEGORIES.filter((c) => summary.categories[c]?.hasLimit).map((c) => (
+                  <div key={c} className="flex items-baseline justify-between text-xs">
+                    <dt style={{ color: COLORS.inkSoft }}>{CATEGORY_LABELS[c]} 残り</dt>
+                    <dd
+                      className="font-bold"
+                      style={{ color: summary.categories[c].isOver ? COLORS.tomatoDeep : COLORS.matcha }}
+                    >
+                      {yen(summary.categories[c].remaining)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             )}
           </div>
         )}
@@ -262,6 +326,30 @@ export default function BudgetView({
           )}
         </ul>
       )}
+    </div>
+  );
+}
+
+function Allocation({ id, label, value, onChange }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[10px] mb-1" style={{ color: COLORS.inkSoft }}>
+        {label}
+      </label>
+      <input
+        id={id}
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="任意"
+        className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+        style={{
+          background: COLORS.cream,
+          border: `1px solid ${COLORS.border}`,
+          color: COLORS.ink,
+          fontFamily: FONT_BODY,
+        }}
+      />
     </div>
   );
 }

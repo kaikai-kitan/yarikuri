@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { usePersistentList, usePersistentValue } from './persist';
+import { normalizeLimit } from './budget';
 import { getUserId, peekUserId, resetUserId } from './userId';
 
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
@@ -27,14 +28,12 @@ const sanitizeExpenses = (list) =>
       items: Array.isArray(e.items) ? e.items : [],
     }));
 
-// 月予算は 0 以上の数値のみ。0 は「未設定」を意味する。
-const sanitizeLimit = (value) => {
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-};
+// 月予算は { total, food, daily } のカテゴリ配分。
+// total が 0 なら「未設定」。配分導入前の数値形式からは normalizeLimit が移行する。
+const UNSET_LIMIT = { total: 0, food: 0, daily: 0 };
 
 export function useMonthlyLimit() {
-  return usePersistentValue('budget:limit', 0, sanitizeLimit);
+  return usePersistentValue('budget:limit', UNSET_LIMIT, normalizeLimit);
 }
 
 export function useExpenses() {

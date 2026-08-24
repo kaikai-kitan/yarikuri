@@ -30,40 +30,59 @@ describe('storage values', () => {
 });
 
 describe('useMonthlyLimit', () => {
-  test('starts at zero when nothing was saved', async () => {
+  const unset = { total: 0, food: 0, daily: 0 };
+
+  test('starts unset when nothing was saved', async () => {
     const { result } = renderHook(() => useMonthlyLimit());
     await waitFor(() => expect(result.current[2]).toBe(true));
-    expect(result.current[0]).toBe(0);
+    expect(result.current[0]).toEqual(unset);
   });
 
-  test('restores a saved limit', async () => {
+  test('migrates a limit saved before allocations existed', async () => {
     localStorage.setItem('budget:limit', JSON.stringify(30000));
     const { result } = renderHook(() => useMonthlyLimit());
     await waitFor(() => expect(result.current[2]).toBe(true));
-    expect(result.current[0]).toBe(30000);
+    expect(result.current[0]).toEqual({ total: 30000, food: 0, daily: 0 });
   });
 
-  test('persists a new limit', async () => {
+  test('restores a saved allocation', async () => {
+    localStorage.setItem('budget:limit', JSON.stringify({ total: 30000, food: 20000, daily: 5000 }));
+    const { result } = renderHook(() => useMonthlyLimit());
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0]).toEqual({ total: 30000, food: 20000, daily: 5000 });
+  });
+
+  test('persists a new allocation', async () => {
     const { result } = renderHook(() => useMonthlyLimit());
     await waitFor(() => expect(result.current[2]).toBe(true));
 
-    act(() => result.current[1](45000));
+    act(() => result.current[1]({ total: 45000, food: 30000, daily: 8000 }));
 
-    await waitFor(() => expect(JSON.parse(localStorage.getItem('budget:limit'))).toBe(45000));
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('budget:limit')))
+        .toEqual({ total: 45000, food: 30000, daily: 8000 })
+    );
   });
 
-  test('falls back to zero when the stored limit is not a usable number', async () => {
+  test('falls back to unset when the stored limit is not usable', async () => {
     localStorage.setItem('budget:limit', JSON.stringify('たくさん'));
     const { result } = renderHook(() => useMonthlyLimit());
     await waitFor(() => expect(result.current[2]).toBe(true));
-    expect(result.current[0]).toBe(0);
+    expect(result.current[0]).toEqual(unset);
   });
 
   test('rejects a negative stored limit', async () => {
     localStorage.setItem('budget:limit', JSON.stringify(-500));
     const { result } = renderHook(() => useMonthlyLimit());
     await waitFor(() => expect(result.current[2]).toBe(true));
-    expect(result.current[0]).toBe(0);
+    expect(result.current[0]).toEqual(unset);
+  });
+
+  test('discards an allocation that exceeds the stored total', async () => {
+    localStorage.setItem('budget:limit', JSON.stringify({ total: 30000, food: 28000, daily: 5000 }));
+    const { result } = renderHook(() => useMonthlyLimit());
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0]).toEqual({ total: 30000, food: 0, daily: 0 });
   });
 });
 

@@ -4,12 +4,17 @@ import BudgetView from '@/components/BudgetView';
 
 const summary = (overrides = {}) => ({
   monthlyLimit: 30000,
+  limits: { total: 30000, food: 0, daily: 0 },
   hasLimit: true,
   spent: 20000,
   remaining: 10000,
   daysLeft: 11,
   dailyAllowance: 909,
   isOver: false,
+  categories: {
+    food: { limit: 0, spent: 0, remaining: 0, hasLimit: false, isOver: false },
+    daily: { limit: 0, spent: 0, remaining: 0, hasLimit: false, isOver: false },
+  },
   ...overrides,
 });
 
@@ -64,7 +69,7 @@ describe('BudgetView — budget setup', () => {
     fireEvent.click(screen.getByRole('button', { name: '設定' }));
 
     // Assert
-    expect(onSetLimit).toHaveBeenCalledWith(30000);
+    expect(onSetLimit).toHaveBeenCalledWith({ total: 30000, food: 0, daily: 0 });
   });
 
   test('does not call onSetLimit for a blank or non-numeric amount', () => {
@@ -104,7 +109,7 @@ describe('BudgetView — budget setup', () => {
     fireEvent.click(screen.getByRole('button', { name: '設定' }));
 
     // Assert
-    expect(onSetLimit).toHaveBeenCalledWith(45000);
+    expect(onSetLimit).toHaveBeenCalledWith({ total: 45000, food: 0, daily: 0 });
   });
 });
 
@@ -407,5 +412,102 @@ describe('BudgetView — editing a record', () => {
     const { onRemoveExpense } = renderView({ expenses: [record()] });
     fireEvent.click(screen.getByRole('button', { name: '2026-08-10 スーパーA の記録を削除' }));
     expect(onRemoveExpense).toHaveBeenCalledWith('e-1');
+  });
+});
+
+describe('BudgetView — category allocations', () => {
+  const unset = summary({ hasLimit: false, monthlyLimit: 0, limits: { total: 0, food: 0, daily: 0 } });
+
+  const allocated = () =>
+    summary({
+      limits: { total: 30000, food: 20000, daily: 5000 },
+      categories: {
+        food: { limit: 20000, spent: 3000, remaining: 17000, hasLimit: true, isOver: false },
+        daily: { limit: 5000, spent: 2000, remaining: 3000, hasLimit: true, isOver: false },
+      },
+    });
+
+  test('offers optional allocations alongside the total', () => {
+    renderView({ summary: unset });
+    expect(screen.getByLabelText('食費の予算')).toBeInTheDocument();
+    expect(screen.getByLabelText('日用品の予算')).toBeInTheDocument();
+  });
+
+  test('reports the total together with its allocations', () => {
+    // Arrange
+    const { onSetLimit } = renderView({ summary: unset });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('今月の予算'), { target: { value: '30000' } });
+    fireEvent.change(screen.getByLabelText('食費の予算'), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText('日用品の予算'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    // Assert
+    expect(onSetLimit).toHaveBeenCalledWith({ total: 30000, food: 20000, daily: 5000 });
+  });
+
+  test('refuses allocations that add up to more than the budget', () => {
+    // Arrange
+    const { onSetLimit } = renderView({ summary: unset });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('今月の予算'), { target: { value: '30000' } });
+    fireEvent.change(screen.getByLabelText('食費の予算'), { target: { value: '28000' } });
+    fireEvent.change(screen.getByLabelText('日用品の予算'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    // Assert
+    expect(onSetLimit).not.toHaveBeenCalled();
+    expect(screen.getByText('配分の合計が今月の予算を超えています')).toBeInTheDocument();
+  });
+
+  test('accepts allocations that exactly fill the budget', () => {
+    // Arrange
+    const { onSetLimit } = renderView({ summary: unset });
+
+    // Act
+    fireEvent.change(screen.getByLabelText('今月の予算'), { target: { value: '30000' } });
+    fireEvent.change(screen.getByLabelText('食費の予算'), { target: { value: '25000' } });
+    fireEvent.change(screen.getByLabelText('日用品の予算'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    // Assert
+    expect(onSetLimit).toHaveBeenCalledWith({ total: 30000, food: 25000, daily: 5000 });
+  });
+
+  test('prefills the existing allocation when the budget is changed', () => {
+    renderView({ summary: allocated() });
+    fireEvent.click(screen.getByRole('button', { name: '予算を変更' }));
+    expect(screen.getByLabelText('今月の予算')).toHaveValue('30000');
+    expect(screen.getByLabelText('食費の予算')).toHaveValue('20000');
+    expect(screen.getByLabelText('日用品の予算')).toHaveValue('5000');
+  });
+
+  test('shows the remaining budget for each allocated category', () => {
+    renderView({ summary: allocated() });
+    expect(screen.getByText('食費 残り')).toBeInTheDocument();
+    expect(screen.getByText('¥17,000')).toBeInTheDocument();
+    expect(screen.getByText('日用品 残り')).toBeInTheDocument();
+    expect(screen.getByText('¥3,000')).toBeInTheDocument();
+  });
+
+  test('shows no category rows when nothing is allocated', () => {
+    renderView();
+    expect(screen.queryByText('食費 残り')).not.toBeInTheDocument();
+    expect(screen.queryByText('日用品 残り')).not.toBeInTheDocument();
+  });
+
+  test('marks a category that has gone over its allocation', () => {
+    renderView({
+      summary: summary({
+        limits: { total: 30000, food: 2000, daily: 0 },
+        categories: {
+          food: { limit: 2000, spent: 3000, remaining: -1000, hasLimit: true, isOver: true },
+          daily: { limit: 0, spent: 0, remaining: 0, hasLimit: false, isOver: false },
+        },
+      }),
+    });
+    expect(screen.getByText('-¥1,000')).toBeInTheDocument();
   });
 });

@@ -42,7 +42,42 @@ describe('BudgetPageClient', () => {
     fireEvent.click(screen.getByRole('button', { name: '設定' }));
 
     // Assert
-    await waitFor(() => expect(JSON.parse(localStorage.getItem('budget:limit'))).toBe(30000));
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('budget:limit')))
+        .toEqual({ total: 30000, food: 0, daily: 0 })
+    );
+  });
+
+  test('saves the category allocations with the budget', async () => {
+    // Arrange
+    render(<BudgetPageClient />);
+    await screen.findByLabelText('今月の予算');
+
+    // Act
+    fireEvent.change(screen.getByLabelText('今月の予算'), { target: { value: '30000' } });
+    fireEvent.change(screen.getByLabelText('食費の予算'), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText('日用品の予算'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    // Assert
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('budget:limit')))
+        .toEqual({ total: 30000, food: 20000, daily: 5000 })
+    );
+    expect(await screen.findByText('食費 残り')).toBeInTheDocument();
+  });
+
+  test('still reads a budget saved before allocations existed', async () => {
+    // Arrange
+    localStorage.setItem('budget:limit', JSON.stringify(30000));
+
+    // Act
+    render(<BudgetPageClient />);
+
+    // Assert — 予算として認識され（設定フォームではなくサマリーが出る）、内訳は無い
+    expect(await screen.findByRole('button', { name: '予算を変更' })).toBeInTheDocument();
+    expect(screen.getAllByText('¥30,000')).toHaveLength(2); // 予算と残りが同額
+    expect(screen.queryByText('食費 残り')).not.toBeInTheDocument();
   });
 
   test('shows the scanned receipt for confirmation', async () => {

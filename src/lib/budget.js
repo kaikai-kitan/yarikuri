@@ -15,6 +15,27 @@ export function categoryOf(item) {
   return item?.isFood === true ? 'food' : 'other';
 }
 
+const UNSET_LIMIT = { total: 0, food: 0, daily: 0 };
+
+const nonNegative = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+// 月予算。配分導入前は単なる数値で保存されていたため、そこから移行する。
+// 配分の合計が総額を超える保存データは、総額を正として配分を捨てる。
+export function normalizeLimit(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? { ...UNSET_LIMIT, total: value } : UNSET_LIMIT;
+  }
+  if (!value || typeof value !== 'object') return UNSET_LIMIT;
+
+  const total = nonNegative(value.total);
+  const food = nonNegative(value.food);
+  const daily = nonNegative(value.daily);
+  return food + daily > total ? { ...UNSET_LIMIT, total } : { total, food, daily };
+}
+
 const pad2 = (n) => String(n).padStart(2, '0');
 
 // 'YYYY-MM'。支出の月次集計キーとして使う。
@@ -73,20 +94,38 @@ export function totalByCategory(expenses) {
 
 // 画面とAIプロンプトの両方が参照する、今月の家計サマリー。
 export function budgetSummary({ monthlyLimit, expenses, now = new Date() }) {
-  const limit = Number(monthlyLimit) || 0;
-  const spent = totalOf(expensesInMonth(expenses, monthKey(now)));
+  const limits = normalizeLimit(monthlyLimit);
+  const thisMonth = expensesInMonth(expenses, monthKey(now));
+  const spent = totalOf(thisMonth);
+  const byCategory = totalByCategory(thisMonth);
   const daysLeft = daysLeftInMonth(now);
-  const hasLimit = limit > 0;
-  const remaining = hasLimit ? limit - spent : 0;
+  const hasLimit = limits.total > 0;
+  const remaining = hasLimit ? limits.total - spent : 0;
+
+  // 配分が 0 のカテゴリは「上限なし」。支出額だけは常に出す。
+  const breakdown = (name) => {
+    const limit = limits[name];
+    const categoryHasLimit = limit > 0;
+    const categoryRemaining = categoryHasLimit ? limit - byCategory[name] : 0;
+    return {
+      limit,
+      spent: byCategory[name],
+      remaining: categoryRemaining,
+      hasLimit: categoryHasLimit,
+      isOver: categoryHasLimit && categoryRemaining < 0,
+    };
+  };
 
   return {
-    monthlyLimit: limit,
+    monthlyLimit: limits.total,
+    limits,
     hasLimit,
     spent,
     remaining,
     daysLeft,
     dailyAllowance: remaining > 0 ? Math.floor(remaining / daysLeft) : 0,
     isOver: hasLimit && remaining < 0,
+    categories: { food: breakdown('food'), daily: breakdown('daily') },
   };
 }
 
