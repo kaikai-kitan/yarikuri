@@ -7,7 +7,7 @@ import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
 import { useFridge, useHistory, useMonthlyLimit, useExpenses } from '@/lib/hooks';
-import { budgetSummary } from '@/lib/budget';
+import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
 import { newId } from '@/lib/id';
 import { ocrFlyer, suggestRecipes } from '@/lib/api';
 import { compressImage } from '@/lib/image';
@@ -130,9 +130,7 @@ export default function RecipesPageClient() {
   );
 }
 
-// 予算が未設定なら null を返し、AI側の予算ブロックを省かせる。
+// 予算が未設定なら null になり、AI側の予算ブロックが省かれる。
 function budgetContext(monthlyLimit, expenses) {
-  const s = budgetSummary({ monthlyLimit, expenses });
-  if (!s.hasLimit) return null;
-  return { remaining: s.remaining, daysLeft: s.daysLeft, dailyAllowance: s.dailyAllowance };
+  return recipeBudgetContext(budgetSummary({ monthlyLimit, expenses }));
 }

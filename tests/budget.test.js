@@ -15,6 +15,7 @@ import {
   projectMonthEnd,
   MIN_DAYS_FOR_PROJECTION,
   NEAR_LIMIT_RATIO,
+  recipeBudgetContext,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -572,5 +573,66 @@ describe('budgetSummary — usage ratio', () => {
     const s = budgetSummary({ monthlyLimit: 0, expenses: [spend(5000)], now });
     expect(s.usageRatio).toBe(0);
     expect(s.isNearLimit).toBe(false);
+  });
+});
+
+describe('recipeBudgetContext', () => {
+  const now = new Date(2026, 7, 21); // 残り11日
+  const spend = (total, items) => expense({ id: 'e-1', date: '2026-08-05', total, items });
+
+  const summaryWith = (monthlyLimit, expenses = []) =>
+    budgetSummary({ monthlyLimit, expenses, now });
+
+  test('sends nothing when no budget is set', () => {
+    expect(recipeBudgetContext(summaryWith(0))).toBeNull();
+  });
+
+  test('uses the food allocation when one exists', () => {
+    // Arrange — 全体は25,000残っているが、食費は17,000しか残っていない
+    const s = summaryWith({ total: 30000, food: 20000, daily: 5000 }, [
+      spend(5000, [
+        { name: '肉', price: 3000, category: 'food' },
+        { name: '洗剤', price: 2000, category: 'daily' },
+      ]),
+    ]);
+
+    // Act
+    const ctx = recipeBudgetContext(s);
+
+    // Assert
+    expect(s.remaining).toBe(25000);
+    expect(ctx.remaining).toBe(17000);
+    expect(ctx.scope).toBe('food');
+  });
+
+  test('falls back to the overall remainder when food is unallocated', () => {
+    // Arrange & Act
+    const s = summaryWith(30000, [spend(5000, [{ name: '肉', price: 5000, category: 'food' }])]);
+    const ctx = recipeBudgetContext(s);
+
+    // Assert
+    expect(ctx.remaining).toBe(25000);
+    expect(ctx.scope).toBe('total');
+  });
+
+  test('recomputes the daily allowance from the food remainder', () => {
+    const s = summaryWith({ total: 30000, food: 22000, daily: 0 }, [
+      spend(1000, [{ name: '肉', price: 1000, category: 'food' }]),
+    ]);
+    // 21000 / 11日
+    expect(recipeBudgetContext(s).dailyAllowance).toBe(1909);
+  });
+
+  test('passes the days left through unchanged', () => {
+    expect(recipeBudgetContext(summaryWith(30000)).daysLeft).toBe(11);
+  });
+
+  test('reports a negative remainder when the food budget is blown', () => {
+    const s = summaryWith({ total: 30000, food: 2000, daily: 0 }, [
+      spend(3000, [{ name: '肉', price: 3000, category: 'food' }]),
+    ]);
+    const ctx = recipeBudgetContext(s);
+    expect(ctx.remaining).toBe(-1000);
+    expect(ctx.dailyAllowance).toBe(0);
   });
 });

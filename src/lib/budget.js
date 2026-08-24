@@ -192,3 +192,21 @@ export function projectExpense({ summary, amount, date, now = new Date() }) {
     isOver: remaining < 0,
   };
 }
+
+// レシピ提案へ渡す予算コンテキスト。
+// 食費の配分があればその残額を使う。日用品の出費が献立の提案を圧迫しないため。
+// 配分が無ければ従来どおり全体の残額を使う。
+export function recipeBudgetContext(summary) {
+  if (!summary.hasLimit) return null;
+
+  const food = summary.categories.food;
+  const usesFoodBudget = food.hasLimit;
+  const remaining = usesFoodBudget ? food.remaining : summary.remaining;
+
+  return {
+    remaining,
+    daysLeft: summary.daysLeft,
+    dailyAllowance: remaining > 0 ? Math.floor(remaining / summary.daysLeft) : 0,
+    scope: usesFoodBudget ? 'food' : 'total',
+  };
+}

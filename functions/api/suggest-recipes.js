@@ -11,11 +11,14 @@ function budgetBlock(budget) {
   const daily = Number(budget.dailyAllowance);
   if (!Number.isFinite(remaining) || !Number.isFinite(daysLeft) || daysLeft <= 0) return '';
 
+  // 食費の配分がある場合は「食費」、無い場合は家計全体を指す
+  const label = budget.scope === 'food' ? '今月の食費' : '今月の予算';
+
   if (remaining <= 0) {
     return `
 
 【今月の家計】
-・今月の予算はすでに超過しています（${yen(remaining)}）。
+・${label}はすでに超過しています（${yen(remaining)}）。
 ・今月の残り日数: ${daysLeft}日
 
 買い足しをできる限り避け、冷蔵庫にあるものと特売品だけで作れるレシピを優先してください。
@@ -25,7 +28,7 @@ function budgetBlock(budget) {
   return `
 
 【今月の家計】
-・残り予算: ${yen(remaining)}
+・${label}の残り: ${yen(remaining)}
 ・今月の残り日数: ${daysLeft}日
 ・1日あたりの目安: ${yen(daily)}
 
