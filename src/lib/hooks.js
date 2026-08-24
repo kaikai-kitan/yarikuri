@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePersistentList, usePersistentValue } from './persist';
 import { normalizeLimit } from './budget';
+import { sanitizePlan } from './plan';
 import { getUserId, peekUserId, resetUserId } from './userId';
 
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
@@ -45,6 +46,11 @@ export function useMonthlyLimit() {
 
 export function useExpenses() {
   return usePersistentList('budget:expenses', sanitizeExpenses);
+}
+
+// 一週間の献立。壊れた保存データは null（献立なし）として扱う。
+export function useWeekPlan() {
+  return usePersistentValue('plan:week', null, sanitizePlan);
 }
 
 export function useFridge() {

@@ -29,6 +29,7 @@ export default defineConfig({
         'src/lib/cookie.js',
         'src/lib/budget.js',
         'src/lib/fridge.js',
+        'src/lib/plan.js',
         'src/lib/userId.js',
         'src/lib/usage.js',
         'src/components/UserIdCard.jsx',
