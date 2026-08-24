@@ -31,7 +31,7 @@ const plan = (overrides = {}) => ({
 });
 
 const renderView = (props = {}) => {
-  const handlers = { onClearPlan: vi.fn() };
+  const handlers = { onClearPlan: vi.fn(), onToggleCooked: vi.fn() };
   render(<WeekPlanView plan={plan()} now={NOW} {...handlers} {...props} />);
   return handlers;
 };
@@ -160,5 +160,41 @@ describe('WeekPlanView — discarding the plan', () => {
     fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
     expect(onClearPlan).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '献立を消す' })).toBeInTheDocument();
+  });
+});
+
+describe('WeekPlanView — marking a day as cooked', () => {
+  test('offers to mark each day as cooked', () => {
+    renderView({ plan: plan({ days: [day(1), day(2)] }) });
+    expect(screen.getByRole('button', { name: '料理1 を作った' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '料理2 を作った' })).toBeInTheDocument();
+  });
+
+  test('reports which day was cooked', () => {
+    const { onToggleCooked } = renderView({ plan: plan({ days: [day(1), day(2)] }) });
+    fireEvent.click(screen.getByRole('button', { name: '料理2 を作った' }));
+    expect(onToggleCooked).toHaveBeenCalledWith(1);
+  });
+
+  test('shows a cooked day as done', () => {
+    renderView({ plan: plan({ days: [day(1, { cookedAt: 1700 })] }) });
+    expect(screen.getByRole('button', { name: '料理1 を作っていないことにする' })).toBeInTheDocument();
+    expect(screen.getByText('作りました')).toBeInTheDocument();
+  });
+
+  test('reports undoing a cooked day', () => {
+    const { onToggleCooked } = renderView({ plan: plan({ days: [day(1, { cookedAt: 1700 })] }) });
+    fireEvent.click(screen.getByRole('button', { name: '料理1 を作っていないことにする' }));
+    expect(onToggleCooked).toHaveBeenCalledWith(0);
+  });
+
+  test('shows how far through the week the cooking is', () => {
+    renderView({ plan: plan({ days: [day(1, { cookedAt: 1 }), day(2, { cookedAt: 2 }), day(3)] }) });
+    expect(screen.getByText('3日中2日ぶん作りました')).toBeInTheDocument();
+  });
+
+  test('shows no progress before anything is cooked', () => {
+    renderView();
+    expect(screen.queryByText(/ぶん作りました/)).not.toBeInTheDocument();
   });
 });

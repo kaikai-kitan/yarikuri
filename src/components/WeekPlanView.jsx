@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { CalendarDays, ShoppingBasket, ArrowDown, Plus } from 'lucide-react';
+import { CalendarDays, ShoppingBasket, ArrowDown, Plus, Check } from 'lucide-react';
 import { COLORS } from '../theme';
-import { planDayDate, currentDayIndex } from '../lib/plan';
+import { planDayDate, currentDayIndex, cookedCount } from '../lib/plan';
 
 const yen = (n) => `¥${Math.round(n).toLocaleString('ja-JP')}`;
 
@@ -20,12 +20,13 @@ const shortDate = (iso) => {
 
 const weekday = (iso) => WEEKDAYS[parseIso(iso).getDay()];
 
-export default function WeekPlanView({ plan, now = new Date(), onClearPlan }) {
+export default function WeekPlanView({ plan, now = new Date(), onClearPlan, onToggleCooked }) {
   const [confirming, setConfirming] = useState(false);
 
   const todayIndex = currentDayIndex(plan, now);
   const lastIndex = plan.days.length - 1;
   const shoppingTotal = plan.shoppingList.reduce((sum, s) => sum + (s.estimatedPrice || 0), 0);
+  const cooked = cookedCount(plan);
 
   return (
     <div className="mb-6">
@@ -73,6 +74,12 @@ export default function WeekPlanView({ plan, now = new Date(), onClearPlan }) {
             </button>
           </span>
         </div>
+      )}
+
+      {cooked > 0 && (
+        <p className="text-[11px] mb-3" style={{ color: COLORS.matcha }}>
+          {plan.days.length}日中{cooked}日ぶん作りました
+        </p>
       )}
 
       {todayIndex === null && (
@@ -130,6 +137,7 @@ export default function WeekPlanView({ plan, now = new Date(), onClearPlan }) {
               style={{
                 background: COLORS.paper,
                 border: `1px solid ${isToday ? COLORS.tomato : COLORS.border}`,
+                opacity: d.cookedAt ? 0.65 : 1,
               }}
             >
               <div className="flex items-center gap-2 mb-1.5">
@@ -182,8 +190,23 @@ export default function WeekPlanView({ plan, now = new Date(), onClearPlan }) {
                 </p>
               )}
 
-              <div className="text-[11px] mt-1.5" style={{ color: COLORS.inkSoft }}>
-                1人前 {yen(d.totalCost)}・{d.cookingTime}
+              <div className="flex items-center justify-between gap-3 mt-1.5">
+                <span className="text-[11px]" style={{ color: COLORS.inkSoft }}>
+                  1人前 {yen(d.totalCost)}・{d.cookingTime}
+                </span>
+                <button
+                  onClick={() => onToggleCooked(i)}
+                  aria-label={d.cookedAt ? `${d.name} を作っていないことにする` : `${d.name} を作った`}
+                  className="flex items-center gap-1 text-[11px] font-bold rounded-full px-3 py-1.5 shrink-0 active:scale-95 transition-transform"
+                  style={
+                    d.cookedAt
+                      ? { background: COLORS.matcha, color: COLORS.paper }
+                      : { border: `1px solid ${COLORS.border}`, color: COLORS.inkSoft }
+                  }
+                >
+                  <Check size={12} />
+                  {d.cookedAt ? '作りました' : '作った'}
+                </button>
               </div>
             </li>
           );

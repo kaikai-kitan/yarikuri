@@ -8,6 +8,7 @@ import {
   currentDayIndex,
   isPlanFinished,
   cookedCount,
+  toggleCooked,
 } from '@/lib/plan';
 
 const day = (n, overrides = {}) => ({
@@ -158,6 +159,49 @@ describe('sanitizePlan', () => {
 
   test('treats a missing shopping list as empty', () => {
     expect(sanitizePlan(plan({ shoppingList: undefined })).shoppingList).toEqual([]);
+  });
+});
+
+describe('toggleCooked', () => {
+  test('marks a day as cooked', () => {
+    const next = toggleCooked(plan(), 2, 1700);
+    expect(next.days[2].cookedAt).toBe(1700);
+  });
+
+  test('unmarks a day that was already cooked', () => {
+    // Arrange
+    const p = toggleCooked(plan(), 2, 1700);
+
+    // Act
+    const next = toggleCooked(p, 2, 1800);
+
+    // Assert
+    expect(next.days[2].cookedAt).toBeUndefined();
+  });
+
+  test('leaves the other days alone', () => {
+    const next = toggleCooked(plan(), 2, 1700);
+    expect(next.days[0].cookedAt).toBeUndefined();
+    expect(next.days[3].cookedAt).toBeUndefined();
+  });
+
+  test('does not mutate the plan it is given', () => {
+    // Arrange
+    const p = plan();
+
+    // Act
+    toggleCooked(p, 2, 1700);
+
+    // Assert
+    expect(p.days[2].cookedAt).toBeUndefined();
+  });
+
+  test('ignores an index outside the plan', () => {
+    expect(toggleCooked(plan(), 9, 1700).days.some((d) => d.cookedAt)).toBe(false);
+  });
+
+  test('returns the plan unchanged when there is none', () => {
+    expect(toggleCooked(null, 0, 1700)).toBeNull();
   });
 });
 

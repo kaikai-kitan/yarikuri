@@ -8,6 +8,7 @@ import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
 import { useFridge, useHistory, useMonthlyLimit, useExpenses, useWeekPlan } from '@/lib/hooks';
+import { toggleCooked } from '@/lib/plan';
 import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
 import { fridgeForSuggestion, expiringSoonNames } from '@/lib/fridge';
 import { newId } from '@/lib/id';
@@ -16,7 +17,7 @@ import { compressImage } from '@/lib/image';
 import { COLORS } from '@/theme';
 
 export default function RecipesPageClient() {
-  const [fridge, , fridgeReady] = useFridge();
+  const [fridge, setFridge, fridgeReady] = useFridge();
   const [, pushHistory, historyReady] = useHistory();
   const [monthlyLimit, , limitReady] = useMonthlyLimit();
   const [expenses, , expensesReady] = useExpenses();
@@ -105,6 +106,24 @@ export default function RecipesPageClient() {
     });
   }, [fridge, monthlyLimit, expenses, setWeekPlan]);
 
+  // 作った日を切り替える。作ったことにした場合だけ、使った食材を冷蔵庫から減らす。
+  // 取り消しでは戻さない（買い直したかどうかは分からないため）。
+  const toggleCookedDay = (index) => {
+    const target = weekPlan?.days?.[index];
+    if (!target) return;
+
+    const wasCooked = Boolean(target.cookedAt);
+    setWeekPlan(toggleCooked(weekPlan, index));
+    if (wasCooked) return;
+
+    const used = new Set(target.usedFromFridge);
+    const consumed = fridge.filter((f) => used.has(f.name));
+    if (!consumed.length) return;
+
+    setFridge(fridge.filter((f) => !used.has(f.name)));
+    showToast(`${consumed.map((f) => f.name).join('、')}を冷蔵庫から減らしました`);
+  };
+
   const searchFromFridge = useCallback(() => {
     if (fridge.length === 0) { showToast('冷蔵庫タブで食材を追加してください', 'error'); return; }
     gateBehindAd(async () => {
@@ -143,7 +162,13 @@ export default function RecipesPageClient() {
         onSearchFromFridge={searchFromFridge}
         onPlanWeek={createWeekPlan}
         planSlot={
-          weekPlan ? <WeekPlanView plan={weekPlan} onClearPlan={() => setWeekPlan(null)} /> : null
+          weekPlan ? (
+            <WeekPlanView
+              plan={weekPlan}
+              onClearPlan={() => setWeekPlan(null)}
+              onToggleCooked={toggleCookedDay}
+            />
+          ) : null
         }
         onOpenRecipe={setRecipeOpen}
         fridgeCount={fridge.length}

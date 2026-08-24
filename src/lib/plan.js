@@ -76,3 +76,18 @@ export function sanitizePlan(raw) {
     days,
   };
 }
+
+// その日を「作った／作っていない」で切り替える。非破壊。
+// 冷蔵庫を減らすのは画面側の責務。ここは献立だけを扱う。
+export function toggleCooked(plan, index, now = Date.now()) {
+  if (!plan?.days?.[index]) return plan;
+
+  return {
+    ...plan,
+    days: plan.days.map((d, i) => {
+      if (i !== index) return d;
+      const { cookedAt, ...rest } = d;
+      return cookedAt ? rest : { ...rest, cookedAt: now };
+    }),
+  };
+}
