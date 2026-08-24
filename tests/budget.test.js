@@ -14,6 +14,7 @@ import {
   normalizeLimit,
   projectMonthEnd,
   MIN_DAYS_FOR_PROJECTION,
+  NEAR_LIMIT_RATIO,
 } from '@/lib/budget';
 
 const expense = (overrides = {}) => ({
@@ -537,5 +538,39 @@ describe('budgetSummary — month-end projection', () => {
       now: new Date(2026, 7, 20),
     });
     expect(s.projection.willExceed).toBe(true);
+  });
+});
+
+describe('budgetSummary — usage ratio', () => {
+  const now = new Date(2026, 7, 21);
+  const spend = (total) => expense({ id: 'e-1', date: '2026-08-05', total, items: [] });
+
+  test('reports how much of the budget has been used', () => {
+    const s = budgetSummary({ monthlyLimit: 30000, expenses: [spend(15000)], now });
+    expect(s.usageRatio).toBe(0.5);
+  });
+
+  test('raises the near-limit flag at the threshold', () => {
+    expect(NEAR_LIMIT_RATIO).toBe(0.8);
+    const s = budgetSummary({ monthlyLimit: 30000, expenses: [spend(24000)], now });
+    expect(s.isNearLimit).toBe(true);
+  });
+
+  test('keeps the flag down below the threshold', () => {
+    const s = budgetSummary({ monthlyLimit: 30000, expenses: [spend(23999)], now });
+    expect(s.isNearLimit).toBe(false);
+  });
+
+  test('drops the flag once the budget is already broken', () => {
+    // 超過は別の文言で伝えるため、近づいている警告は重ねない
+    const s = budgetSummary({ monthlyLimit: 30000, expenses: [spend(31000)], now });
+    expect(s.isOver).toBe(true);
+    expect(s.isNearLimit).toBe(false);
+  });
+
+  test('reports no ratio when no budget is set', () => {
+    const s = budgetSummary({ monthlyLimit: 0, expenses: [spend(5000)], now });
+    expect(s.usageRatio).toBe(0);
+    expect(s.isNearLimit).toBe(false);
   });
 });

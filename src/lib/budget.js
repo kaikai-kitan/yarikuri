@@ -46,6 +46,9 @@ export function monthKey(date = new Date()) {
 // 月初は標本が少なく推定が大きく外れるため、この日数を過ぎるまで着地見込みを出さない。
 export const MIN_DAYS_FOR_PROJECTION = 3;
 
+// 予算をこの割合まで使ったら警告する。
+export const NEAR_LIMIT_RATIO = 0.8;
+
 // その月の日数。
 function daysInMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -108,6 +111,7 @@ export function budgetSummary({ monthlyLimit, expenses, now = new Date() }) {
   const daysLeft = daysLeftInMonth(now);
   const hasLimit = limits.total > 0;
   const remaining = hasLimit ? limits.total - spent : 0;
+  const usageRatio = hasLimit ? spent / limits.total : 0;
 
   // 配分が 0 のカテゴリは「上限なし」。支出額だけは常に出す。
   const breakdown = (name) => {
@@ -132,6 +136,9 @@ export function budgetSummary({ monthlyLimit, expenses, now = new Date() }) {
     daysLeft,
     dailyAllowance: remaining > 0 ? Math.floor(remaining / daysLeft) : 0,
     isOver: hasLimit && remaining < 0,
+    usageRatio,
+    // 超過済みは別の文言で伝えるため、近づいている警告は重ねない
+    isNearLimit: hasLimit && usageRatio >= NEAR_LIMIT_RATIO && remaining >= 0,
     categories: { food: breakdown('food'), daily: breakdown('daily') },
     projection: projectMonthEnd({
       spent,

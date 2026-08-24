@@ -183,6 +183,29 @@ export default function BudgetView({
               </p>
             )}
 
+            {summary.projection.available && (
+              <p
+                className="text-xs mt-1.5"
+                style={{
+                  color: summary.projection.willExceed ? COLORS.tomatoDeep : COLORS.inkSoft,
+                  fontWeight: summary.projection.willExceed ? 700 : 400,
+                }}
+              >
+                {summary.projection.willExceed
+                  ? `このペースだと月末に ${yen(summary.projection.overBy)} 超えます`
+                  : `このペースだと月末 ${yen(summary.projection.projected)}`}
+              </p>
+            )}
+
+            {summary.isNearLimit && (
+              <p
+                className="text-xs font-bold mt-2 rounded-lg px-3 py-2"
+                style={{ background: COLORS.blush, color: COLORS.tomatoDeep }}
+              >
+                予算の80%を使いました
+              </p>
+            )}
+
             {(summary.categories.food.hasLimit || summary.categories.daily.hasLimit) && (
               <dl className="mt-3 pt-3 grid gap-1" style={{ borderTop: `1px solid ${COLORS.border}` }}>
                 {CATEGORIES.filter((c) => summary.categories[c]?.hasLimit).map((c) => (

@@ -15,6 +15,9 @@ const summary = (overrides = {}) => ({
     food: { limit: 0, spent: 0, remaining: 0, hasLimit: false, isOver: false },
     daily: { limit: 0, spent: 0, remaining: 0, hasLimit: false, isOver: false },
   },
+  projection: { available: false, projected: 0, willExceed: false, overBy: 0 },
+  usageRatio: 0.67,
+  isNearLimit: false,
   ...overrides,
 });
 
@@ -509,5 +512,44 @@ describe('BudgetView — category allocations', () => {
       }),
     });
     expect(screen.getByText('-¥1,000')).toBeInTheDocument();
+  });
+});
+
+describe('BudgetView — pace and warnings', () => {
+  test('shows where the month will land at this pace', () => {
+    renderView({
+      summary: summary({ projection: { available: true, projected: 29524, willExceed: false, overBy: 0 } }),
+    });
+    expect(screen.getByText('このペースだと月末 ¥29,524')).toBeInTheDocument();
+  });
+
+  test('says nothing about the pace early in the month', () => {
+    renderView();
+    expect(screen.queryByText(/このペースだと/)).not.toBeInTheDocument();
+  });
+
+  test('warns by how much the pace will break the budget', () => {
+    renderView({
+      summary: summary({ projection: { available: true, projected: 60000, willExceed: true, overBy: 30000 } }),
+    });
+    expect(screen.getByText('このペースだと月末に ¥30,000 超えます')).toBeInTheDocument();
+  });
+
+  test('shows a banner once most of the budget is gone', () => {
+    renderView({ summary: summary({ isNearLimit: true, usageRatio: 0.83 }) });
+    expect(screen.getByText('予算の80%を使いました')).toBeInTheDocument();
+  });
+
+  test('shows no banner while there is room left', () => {
+    renderView({ summary: summary({ isNearLimit: false, usageRatio: 0.5 }) });
+    expect(screen.queryByText('予算の80%を使いました')).not.toBeInTheDocument();
+  });
+
+  test('does not stack the banner on top of the over-budget message', () => {
+    renderView({
+      summary: summary({ spent: 32000, remaining: -2000, isOver: true, isNearLimit: false }),
+    });
+    expect(screen.getByText('予算を超えています')).toBeInTheDocument();
+    expect(screen.queryByText('予算の80%を使いました')).not.toBeInTheDocument();
   });
 });
