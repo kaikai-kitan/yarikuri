@@ -13,6 +13,7 @@ export default function RecipesView({
   onOpenRecipe,
   fridgeCount,
   adSlot,
+  expiringNames = [],
 }) {
   const fileRef = useRef(null);
 
@@ -152,6 +153,7 @@ export default function RecipesView({
                 recipe={r}
                 onOpen={() => onOpenRecipe(r)}
                 rank={i + 1}
+                expiringNames={expiringNames}
               />
             ))}
             <AdSlot
@@ -166,11 +168,21 @@ export default function RecipesView({
   );
 }
 
-function RecipeCard({ recipe, onOpen, rank }) {
+// 期限が近い食材を何品使い切れるかを一言で伝える。
+function useUpMessage(recipe, expiringNames) {
+  const used = (recipe.usedFromFridge || []).filter((name) => expiringNames.includes(name));
+  if (!used.length) return null;
+  return used.length === 1
+    ? `${used[0]}を使い切れます`
+    : `${used[0]}ほか${used.length - 1}品を使い切れます`;
+}
+
+function RecipeCard({ recipe, onOpen, rank, expiringNames = [] }) {
   const missingTotal = (recipe.missingIngredients || []).reduce(
     (s, m) => s + (m.estimatedPrice || 0),
     0
   );
+  const useUp = useUpMessage(recipe, expiringNames);
   return (
     <button
       onClick={onOpen}
@@ -197,6 +209,14 @@ function RecipeCard({ recipe, onOpen, rank }) {
           >
             #{rank} BEST VALUE
           </div>
+          {useUp && (
+            <div
+              className="inline-block text-[10px] font-bold rounded-full px-2 py-0.5 mb-1.5"
+              style={{ background: COLORS.blush, color: COLORS.tomatoDeep }}
+            >
+              {useUp}
+            </div>
+          )}
           <div
             className="display text-base font-bold leading-tight mb-1.5 truncate"
             style={{ color: COLORS.ink }}

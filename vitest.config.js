@@ -35,6 +35,7 @@ export default defineConfig({
         'src/components/BudgetView.jsx',
         'src/app/budget/**',
         'functions/api/_receipt.js',
+        'src/components/RecipesView.jsx',
         'src/components/FridgeView.jsx',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },

@@ -6,6 +6,8 @@ import {
   EXPIRY_SOON_DAYS,
   DEFAULT_SHELF_LIFE_DAYS,
   defaultExpiryFor,
+  fridgeForSuggestion,
+  expiringSoonNames,
 } from '@/lib/fridge';
 
 const now = new Date(2026, 7, 24); // 2026-08-24
@@ -147,5 +149,68 @@ describe('default shelf life', () => {
     // 日本時間の深夜は UTC ではまだ前日。ずれると期限が1日短くなる
     const lateNight = new Date(2026, 7, 24, 23, 30);
     expect(defaultExpiryFor('perishable', lateNight)).toBe('2026-08-27');
+  });
+});
+
+describe('fridgeForSuggestion', () => {
+  test('sends the soonest expiry first with its days left', () => {
+    // Arrange
+    const items = [
+      item({ id: 'a', name: 'キャベツ', expiresAt: '2026-08-30' }),
+      item({ id: 'b', name: '豚こま', expiresAt: '2026-08-26' }),
+    ];
+
+    // Act & Assert
+    expect(fridgeForSuggestion(items, now)).toEqual([
+      { name: '豚こま', daysLeft: 2 },
+      { name: 'キャベツ', daysLeft: 6 },
+    ]);
+  });
+
+  test('omits the days left for an ingredient with no expiry', () => {
+    expect(fridgeForSuggestion([item({ name: 'しょうゆ' })], now)).toEqual([{ name: 'しょうゆ' }]);
+  });
+
+  test('leaves expired ingredients out entirely', () => {
+    // 期限切れのものを「使い切って」と提案させるべきではない
+    const items = [
+      item({ id: 'a', name: '木綿豆腐', expiresAt: '2026-08-22' }),
+      item({ id: 'b', name: '豚こま', expiresAt: '2026-08-26' }),
+    ];
+    expect(fridgeForSuggestion(items, now).map((f) => f.name)).toEqual(['豚こま']);
+  });
+
+  test('keeps an ingredient that expires today', () => {
+    expect(fridgeForSuggestion([item({ name: '牛乳', expiresAt: '2026-08-24' })], now))
+      .toEqual([{ name: '牛乳', daysLeft: 0 }]);
+  });
+
+  test('tolerates an empty or missing list', () => {
+    expect(fridgeForSuggestion([], now)).toEqual([]);
+    expect(fridgeForSuggestion(undefined, now)).toEqual([]);
+  });
+});
+
+describe('expiringSoonNames', () => {
+  test('names only the ingredients that are running out', () => {
+    // Arrange
+    const items = [
+      item({ id: 'a', name: '豚こま', expiresAt: '2026-08-26' }),
+      item({ id: 'b', name: 'キャベツ', expiresAt: '2026-09-10' }),
+      item({ id: 'c', name: 'しょうゆ' }),
+      item({ id: 'd', name: '木綿豆腐', expiresAt: '2026-08-22' }),
+    ];
+
+    // Act & Assert
+    expect(expiringSoonNames(items, now)).toEqual(['豚こま']);
+  });
+
+  test('includes an ingredient that expires today', () => {
+    expect(expiringSoonNames([item({ name: '牛乳', expiresAt: '2026-08-24' })], now)).toEqual(['牛乳']);
+  });
+
+  test('returns nothing when nothing is running out', () => {
+    expect(expiringSoonNames([item({ name: 'しょうゆ' })], now)).toEqual([]);
+    expect(expiringSoonNames(undefined, now)).toEqual([]);
   });
 });

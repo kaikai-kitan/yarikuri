@@ -8,6 +8,7 @@ import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
 import { useFridge, useHistory, useMonthlyLimit, useExpenses } from '@/lib/hooks';
 import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
+import { fridgeForSuggestion, expiringSoonNames } from '@/lib/fridge';
 import { newId } from '@/lib/id';
 import { ocrFlyer, suggestRecipes } from '@/lib/api';
 import { compressImage } from '@/lib/image';
@@ -68,7 +69,7 @@ export default function RecipesPageClient() {
         const { base64, mediaType } = await compressImage(file);
         const flyerItems = await ocrFlyer(base64, mediaType);
         if (!flyerItems.length) { showToast('特売品を検出できませんでした', 'error'); setSearching(null); return; }
-        const fridgeNames = fridge.map((f) => f.name);
+        const fridgeNames = fridgeForSuggestion(fridge);
         const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses));
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'flyer', fridgeUsed: fridgeNames, flyerItems, recipes };
@@ -89,7 +90,7 @@ export default function RecipesPageClient() {
       setCurrentRecipes([]);
       setCurrentMeta(null);
       try {
-        const fridgeNames = fridge.map((f) => f.name);
+        const fridgeNames = fridgeForSuggestion(fridge);
         const recipes = await suggestRecipes(fridgeNames, [], budgetContext(monthlyLimit, expenses));
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'fridge', fridgeUsed: fridgeNames, flyerItems: null, recipes };
@@ -120,6 +121,7 @@ export default function RecipesPageClient() {
         onSearchFromFridge={searchFromFridge}
         onOpenRecipe={setRecipeOpen}
         fridgeCount={fridge.length}
+        expiringNames={expiringSoonNames(fridge)}
         adSlot=""
       />
       {searching && <SearchingScreen source={searching} />}

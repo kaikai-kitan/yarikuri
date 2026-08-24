@@ -3,6 +3,35 @@ import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
 
 const yen = (n) => `${Math.round(n).toLocaleString('ja-JP')}円`;
 
+// 在庫1件の表示。期限を持たない食材や、旧クライアントが送る文字列にも耐える。
+const URGENT_DAYS = 3;
+
+export function fridgeLine(entry) {
+  if (typeof entry === 'string') return `・${entry}`;
+  if (!entry || typeof entry.name !== 'string') return null;
+
+  const { name, daysLeft } = entry;
+  if (typeof daysLeft !== 'number') return `・${name}`;
+  if (daysLeft === 0) return `・${name}（今日が期限）`;
+  return `・${name}（あと${daysLeft}日）`;
+}
+
+// 期限が迫っている食材を使い切らせる指示。無ければ空文字。
+export function urgentBlock(fridge) {
+  const urgent = fridge
+    .filter((f) => f && typeof f === 'object' && typeof f.daysLeft === 'number' && f.daysLeft <= URGENT_DAYS)
+    .map((f) => f.name);
+  if (!urgent.length) return '';
+
+  return `
+
+【まもなく期限切れ】
+${urgent.map((n) => `・${n}`).join('\n')}
+
+これらを最優先で使い切るレシピにしてください。
+使い切れる食材が多いレシピほど上位に並べてください。`;
+}
+
 // 家計サマリーをプロンプト用のテキストにする。未設定なら空文字。
 function budgetBlock(budget) {
   if (!budget || typeof budget !== 'object') return '';
@@ -61,9 +90,8 @@ export async function onRequestPost(context) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
-  const fridgeText = fridge.length
-    ? fridge.map((n) => `・${n}`).join('\n')
-    : '（登録なし）';
+  const fridgeLines = fridge.map(fridgeLine).filter(Boolean);
+  const fridgeText = fridgeLines.length ? fridgeLines.join('\n') : '（登録なし）';
   const flyerText = flyerItems.length
     ? flyerItems
         .map((d) => `・${d.name} ${d.price}円${d.store ? `（${d.store}）` : ''}`)
@@ -83,6 +111,7 @@ export async function onRequestPost(context) {
 
 【冷蔵庫の食材・調味料】
 ${fridgeText}
+${urgentBlock(fridge)}
 
 【今日の特売品】
 ${flyerText}

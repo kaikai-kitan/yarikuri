@@ -68,3 +68,19 @@ export function defaultExpiryFor(kind, now = new Date()) {
   const expiry = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
   return toIsoDate(expiry);
 }
+
+// レシピ提案へ送る在庫。期限が近い順に並べ、残り日数を添える。
+// 期限切れは送らない。使い切りを勧めるべきではないため。
+export function fridgeForSuggestion(items, now = new Date()) {
+  return sortByExpiry(items, now)
+    .filter((item) => expiryState(item, now) !== 'expired')
+    .map((item) => {
+      const daysLeft = daysUntilExpiry(item, now);
+      return daysLeft === null ? { name: item.name } : { name: item.name, daysLeft };
+    });
+}
+
+// もうすぐ切れる食材の名前。提案カードで「使い切れます」を出すのに使う。
+export function expiringSoonNames(items, now = new Date()) {
+  return (items ?? []).filter((item) => expiryState(item, now) === 'soon').map((item) => item.name);
+}
