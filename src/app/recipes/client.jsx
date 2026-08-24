@@ -6,11 +6,11 @@ import RecipeDetail from '@/components/RecipeDetail';
 import SearchingScreen from '@/components/SearchingScreen';
 import RewardAdModal from '@/components/RewardAdModal';
 import { Toast } from '@/components/ui';
-import { useFridge, useHistory, useMonthlyLimit, useExpenses } from '@/lib/hooks';
+import { useFridge, useHistory, useMonthlyLimit, useExpenses, useWeekPlan } from '@/lib/hooks';
 import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
 import { fridgeForSuggestion, expiringSoonNames } from '@/lib/fridge';
 import { newId } from '@/lib/id';
-import { ocrFlyer, suggestRecipes } from '@/lib/api';
+import { ocrFlyer, suggestRecipes, planWeek } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { COLORS } from '@/theme';
 
@@ -19,6 +19,7 @@ export default function RecipesPageClient() {
   const [, pushHistory, historyReady] = useHistory();
   const [monthlyLimit, , limitReady] = useMonthlyLimit();
   const [expenses, , expensesReady] = useExpenses();
+  const [weekPlan, setWeekPlan, planReady] = useWeekPlan();
 
   const [currentRecipes, setCurrentRecipes] = useState([]);
   const [currentMeta, setCurrentMeta] = useState(null);
@@ -28,7 +29,7 @@ export default function RecipesPageClient() {
   const [recipeOpen, setRecipeOpen] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const ready = fridgeReady && historyReady && limitReady && expensesReady;
+  const ready = fridgeReady && historyReady && limitReady && expensesReady && planReady;
 
   useEffect(() => {
     try {
@@ -83,6 +84,26 @@ export default function RecipesPageClient() {
     });
   }, [fridge, pushHistory, monthlyLimit, expenses]);
 
+  // 一週間分の献立。検索1回分の枠を消費する。
+  const createWeekPlan = useCallback(() => {
+    if (fridge.length === 0) { showToast('冷蔵庫タブで食材を追加してください', 'error'); return; }
+    gateBehindAd(async () => {
+      setSearching('plan');
+      try {
+        const plan = await planWeek({
+          fridge: fridgeForSuggestion(fridge),
+          flyerItems: [],
+          budget: budgetContext(monthlyLimit, expenses),
+          startDate: todayIso(),
+        });
+        setWeekPlan({ ...plan, createdAt: Date.now() });
+        showToast(`${plan.days.length}日分の献立を組みました`);
+      } catch (e) {
+        showToast(e.message || '献立の作成に失敗しました', 'error');
+      } finally { setSearching(null); }
+    });
+  }, [fridge, monthlyLimit, expenses, setWeekPlan]);
+
   const searchFromFridge = useCallback(() => {
     if (fridge.length === 0) { showToast('冷蔵庫タブで食材を追加してください', 'error'); return; }
     gateBehindAd(async () => {
@@ -119,6 +140,7 @@ export default function RecipesPageClient() {
         currentMeta={currentMeta}
         onSearchFromFlyer={searchFromFlyer}
         onSearchFromFridge={searchFromFridge}
+        onPlanWeek={createWeekPlan}
         onOpenRecipe={setRecipeOpen}
         fridgeCount={fridge.length}
         expiringNames={expiringSoonNames(fridge)}
@@ -135,4 +157,12 @@ export default function RecipesPageClient() {
 // 予算が未設定なら null になり、AI側の予算ブロックが省かれる。
 function budgetContext(monthlyLimit, expenses) {
   return recipeBudgetContext(budgetSummary({ monthlyLimit, expenses }));
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+// ローカル日付の 'YYYY-MM-DD'。toISOString は UTC でずれるため使わない。
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }

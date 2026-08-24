@@ -1,6 +1,6 @@
 'use client';
 import { useRef } from 'react';
-import { Camera, Refrigerator, ChefHat, Wallet, Play } from 'lucide-react';
+import { Camera, Refrigerator, ChefHat, Wallet, Play, CalendarDays } from 'lucide-react';
 import { COLORS } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
 import AdSlot from './AdSlot';
@@ -10,6 +10,7 @@ export default function RecipesView({
   currentMeta,
   onSearchFromFlyer,
   onSearchFromFridge,
+  onPlanWeek,
   onOpenRecipe,
   fridgeCount,
   adSlot,
@@ -118,6 +119,34 @@ export default function RecipesView({
               {fridgeCount === 0
                 ? '先に冷蔵庫タブで食材を追加してください'
                 : `登録中の${fridgeCount}品からおすすめを提案`}
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={onPlanWeek}
+          disabled={fridgeCount === 0}
+          className="w-full rounded-2xl p-5 flex items-center gap-4 active:scale-[0.99] transition-transform"
+          style={{
+            background: fridgeCount === 0 ? COLORS.border : COLORS.paper,
+            border: `1px solid ${fridgeCount === 0 ? COLORS.border : COLORS.gold}`,
+            color: fridgeCount === 0 ? COLORS.inkSoft : COLORS.ink,
+            cursor: fridgeCount === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{
+              background: fridgeCount === 0 ? 'rgba(0,0,0,0.05)' : COLORS.cream,
+              color: fridgeCount === 0 ? COLORS.inkSoft : COLORS.gold,
+            }}
+          >
+            <CalendarDays size={22} />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-sm font-bold mb-0.5">1週間分の献立を作る</div>
+            <div className="text-xs" style={{ color: COLORS.inkSoft }}>
+              前日の残りを繋いで7日分をまとめて提案
             </div>
           </div>
         </button>

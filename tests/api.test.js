@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { ocrReceipt, suggestRecipes } from '@/lib/api';
+import { ocrReceipt, suggestRecipes, planWeek } from '@/lib/api';
 
 const mockFetch = (body, ok = true, status = 200) => {
   const fn = vi.fn().mockResolvedValue({ ok, status, json: async () => body });
@@ -81,5 +81,45 @@ describe('suggestRecipes', () => {
 
     // Act & Assert
     expect(await suggestRecipes([], [])).toEqual([{ name: '卵チャーハン' }]);
+  });
+});
+
+describe('planWeek', () => {
+  test('posts the fridge, deals, budget and start date', async () => {
+    // Arrange
+    const plan = { startDate: '2026-08-24', shoppingList: [], days: [{ day: 1, name: '肉じゃが' }] };
+    const fn = mockFetch({ plan });
+    const fridge = [{ name: '豚こま', daysLeft: 2 }];
+    const budget = { remaining: 17000, daysLeft: 8, dailyAllowance: 2125, scope: 'food' };
+
+    // Act
+    const result = await planWeek({ fridge, flyerItems: [], budget, startDate: '2026-08-24' });
+
+    // Assert
+    expect(fn).toHaveBeenCalledWith('/api/plan-week', expect.objectContaining({ method: 'POST' }));
+    expect(bodyOf(fn)).toEqual({ fridge, flyerItems: [], budget, startDate: '2026-08-24' });
+    expect(result).toEqual(plan);
+  });
+
+  test('sends no budget when none is available', async () => {
+    const fn = mockFetch({ plan: { days: [{ name: '肉じゃが' }] } });
+    await planWeek({ fridge: [], startDate: '2026-08-24' });
+    expect(bodyOf(fn).budget).toBeNull();
+  });
+
+  test('throws the error message returned by the server', async () => {
+    mockFetch({ error: '献立を組み立てられませんでした' }, false, 500);
+    await expect(planWeek({ fridge: [], startDate: '2026-08-24' }))
+      .rejects.toThrow('献立を組み立てられませんでした');
+  });
+
+  test('throws a fallback message when the server sends no detail', async () => {
+    mockFetch({}, false, 502);
+    await expect(planWeek({ fridge: [], startDate: '2026-08-24' })).rejects.toThrow(/502/);
+  });
+
+  test('throws when the response contains no plan', async () => {
+    mockFetch({});
+    await expect(planWeek({ fridge: [], startDate: '2026-08-24' })).rejects.toThrow();
   });
 });

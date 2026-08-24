@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import RecipesView from '@/components/RecipesView';
 
 const recipe = (overrides = {}) => ({
@@ -21,6 +21,7 @@ const renderView = (props = {}) =>
       currentMeta={{ source: 'fridge', fridgeCount: 2 }}
       onSearchFromFlyer={vi.fn()}
       onSearchFromFridge={vi.fn()}
+      onPlanWeek={vi.fn()}
       onOpenRecipe={vi.fn()}
       fridgeCount={2}
       adSlot=""
@@ -53,5 +54,62 @@ describe('RecipesView — using up what is about to expire', () => {
   test('tolerates a recipe with no fridge ingredients', () => {
     renderView({ currentRecipes: [recipe({ usedFromFridge: undefined })], expiringNames: ['豚こま'] });
     expect(screen.queryByText(/使い切れます/)).not.toBeInTheDocument();
+  });
+});
+
+describe('RecipesView — planning a week', () => {
+  test('offers to plan a week of meals', () => {
+    renderView();
+    expect(screen.getByRole('button', { name: /1週間分の献立を作る/ })).toBeInTheDocument();
+  });
+
+  test('explains what the plan does', () => {
+    renderView();
+    expect(screen.getByText('前日の残りを繋いで7日分をまとめて提案')).toBeInTheDocument();
+  });
+
+  test('asks for the plan when pressed', () => {
+    // Arrange
+    const onPlanWeek = vi.fn();
+    render(
+      <RecipesView
+        currentRecipes={[]}
+        currentMeta={null}
+        onSearchFromFlyer={vi.fn()}
+        onSearchFromFridge={vi.fn()}
+        onPlanWeek={onPlanWeek}
+        onOpenRecipe={vi.fn()}
+        fridgeCount={3}
+        adSlot=""
+        expiringNames={[]}
+      />
+    );
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: /1週間分の献立を作る/ }));
+
+    // Assert
+    expect(onPlanWeek).toHaveBeenCalled();
+  });
+
+  test('cannot plan a week with an empty fridge', () => {
+    // Arrange
+    const onPlanWeek = vi.fn();
+    render(
+      <RecipesView
+        currentRecipes={[]}
+        currentMeta={null}
+        onSearchFromFlyer={vi.fn()}
+        onSearchFromFridge={vi.fn()}
+        onPlanWeek={onPlanWeek}
+        onOpenRecipe={vi.fn()}
+        fridgeCount={0}
+        adSlot=""
+        expiringNames={[]}
+      />
+    );
+
+    // Act & Assert
+    expect(screen.getByRole('button', { name: /1週間分の献立を作る/ })).toBeDisabled();
   });
 });

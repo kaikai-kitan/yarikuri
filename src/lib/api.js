@@ -44,3 +44,20 @@ export async function suggestRecipes(fridge, flyerItems, budget = null) {
   }
   return data.recipes || [];
 }
+
+// 一週間分の献立を1リクエストで取得する。
+export async function planWeek({ fridge, flyerItems = [], budget = null, startDate }) {
+  const res = await fetch('/api/plan-week', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fridge, flyerItems, budget: budget ?? null, startDate }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `献立の作成に失敗 (${res.status})`);
+  }
+  if (!data.plan) {
+    throw new Error('献立を組み立てられませんでした');
+  }
+  return data.plan;
+}
