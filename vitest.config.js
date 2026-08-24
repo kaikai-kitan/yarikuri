@@ -38,6 +38,7 @@ export default defineConfig({
         'functions/api/_receipt.js',
         'functions/api/_plan.js',
         'functions/api/_prompt.js',
+        'functions/api/_rakuten.js',
         'src/components/RecipesView.jsx',
         'src/components/WeekPlanView.jsx',
         'src/components/FridgeView.jsx',
