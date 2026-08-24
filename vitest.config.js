@@ -28,6 +28,7 @@ export default defineConfig({
         'src/lib/keyboard.js',
         'src/lib/cookie.js',
         'src/lib/budget.js',
+        'src/lib/fridge.js',
         'src/lib/userId.js',
         'src/lib/usage.js',
         'src/components/UserIdCard.jsx',

@@ -7,8 +7,15 @@ import { getUserId, peekUserId, resetUserId } from './userId';
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
 
 // 保存済みデータの検証ルール。壊れた要素は捨て、欠けたフラグだけ補う。
+// 期限は 'YYYY-MM-DD' のみ受け付ける。不正な値は食材ごと捨てず、期限だけ落とす。
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 const sanitizeFridgeItems = (list) =>
-  list.filter((f) => isFilledString(f?.id) && isFilledString(f?.name));
+  list
+    .filter((f) => isFilledString(f?.id) && isFilledString(f?.name))
+    .map(({ expiresAt, ...rest }) =>
+      typeof expiresAt === 'string' && ISO_DATE.test(expiresAt) ? { ...rest, expiresAt } : rest
+    );
 
 const sanitizeSearches = (list) =>
   list.filter((h) => isFilledString(h?.id) && Array.isArray(h?.recipes));

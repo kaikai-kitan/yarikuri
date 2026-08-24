@@ -31,6 +31,37 @@ describe('useFridge', () => {
     expect(result.current[0]).toEqual(saved);
   });
 
+  test('keeps a well-formed expiry date', async () => {
+    // Arrange
+    localStorage.setItem(
+      'fridge:items',
+      JSON.stringify([{ id: 'f-1', name: '牛乳', addedAt: 1, expiresAt: '2026-08-30' }])
+    );
+
+    // Act
+    const { result } = renderHook(() => useFridge());
+
+    // Assert
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0][0].expiresAt).toBe('2026-08-30');
+  });
+
+  test('keeps the item but drops a malformed expiry date', async () => {
+    // Arrange
+    localStorage.setItem(
+      'fridge:items',
+      JSON.stringify([{ id: 'f-1', name: '牛乳', addedAt: 1, expiresAt: 'まだ大丈夫' }])
+    );
+
+    // Act
+    const { result } = renderHook(() => useFridge());
+
+    // Assert
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0]).toHaveLength(1);
+    expect(result.current[0][0].expiresAt).toBeUndefined();
+  });
+
   test('persists fridge items after they change', async () => {
     // Arrange
     const { result } = renderHook(() => useFridge());
