@@ -36,6 +36,8 @@ export default defineConfig({
         'src/components/BudgetView.jsx',
         'src/app/budget/**',
         'functions/api/_receipt.js',
+        'functions/api/_plan.js',
+        'functions/api/_prompt.js',
         'src/components/RecipesView.jsx',
         'src/components/FridgeView.jsx',
       ],
