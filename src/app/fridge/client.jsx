@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import FridgeView from '@/components/FridgeView';
 import { useFridge } from '@/lib/hooks';
 import { newId } from '@/lib/id';
+import { expiryState } from '@/lib/fridge';
 import { COLORS } from '@/theme';
 
 export default function FridgePageClient() {
@@ -15,6 +16,18 @@ export default function FridgePageClient() {
   };
 
   const removeFridgeItem = (id) => setFridge(fridge.filter((f) => f.id !== id));
+
+  // 空文字が来たら期限を外す（日付欄をクリアした場合）。
+  const setExpiry = (id, expiresAt) =>
+    setFridge(
+      fridge.map((f) => {
+        if (f.id !== id) return f;
+        const { expiresAt: _current, ...rest } = f;
+        return expiresAt ? { ...rest, expiresAt } : rest;
+      })
+    );
+
+  const removeExpired = () => setFridge(fridge.filter((f) => expiryState(f) !== 'expired'));
 
   if (!ready) {
     return (
@@ -29,6 +42,8 @@ export default function FridgePageClient() {
       items={fridge}
       onAdd={addFridgeItem}
       onRemove={removeFridgeItem}
+      onSetExpiry={setExpiry}
+      onRemoveExpired={removeExpired}
     />
   );
 }

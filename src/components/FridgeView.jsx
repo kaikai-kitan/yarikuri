@@ -1,8 +1,9 @@
 'use client';
 import { useState, useRef } from 'react';
-import { Refrigerator, Plus, X } from 'lucide-react';
+import { Refrigerator, Plus, X, CalendarClock } from 'lucide-react';
 import { COLORS, FONT_BODY } from '../theme';
 import { SectionHeader, EmptyState } from './ui';
+import { daysUntilExpiry, expiryState, sortByExpiry } from '../lib/fridge';
 import { isSubmitKey } from '../lib/keyboard';
 
 const SUGGESTIONS = [
@@ -20,9 +21,31 @@ const SUGGESTIONS = [
   '砂糖',
 ];
 
-export default function FridgeView({ items, onAdd, onRemove }) {
+// 期限の見せ方は残り日数で変える。日付より「今日まで」のほうが判断が早い。
+function expiryLabel(item, now) {
+  const days = daysUntilExpiry(item, now);
+  if (days === null) return '期限なし';
+  if (days < 0) return '期限切れ';
+  if (days === 0) return '今日まで';
+  if (days <= 3) return `あと${days}日`;
+
+  const [, month, day] = item.expiresAt.split('-').map(Number);
+  return `${month}/${day}まで`;
+}
+
+const EXPIRY_TONE = {
+  expired: COLORS.tomatoDeep,
+  soon: COLORS.tomato,
+  fresh: COLORS.inkSoft,
+};
+
+export default function FridgeView({ items, now = new Date(), onAdd, onRemove, onSetExpiry, onRemoveExpired }) {
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState(null);
   const inputRef = useRef(null);
+
+  const sorted = sortByExpiry(items, now);
+  const hasExpired = items.some((it) => expiryState(it, now) === 'expired');
 
   const submit = () => {
     if (!text.trim()) return;
@@ -95,37 +118,86 @@ export default function FridgeView({ items, onAdd, onRemove }) {
           desc="家にある食材や調味料を追加してください"
         />
       ) : (
-        <ul className="space-y-2">
-          {items.map((it) => (
-            <li
-              key={it.id}
-              className="rounded-xl flex items-center gap-3 px-4 py-3 fade-up"
-              style={{
-                background: COLORS.paper,
-                border: `1px solid ${COLORS.border}`,
-              }}
+        <>
+          {hasExpired && (
+            <button
+              onClick={onRemoveExpired}
+              className="w-full rounded-xl px-4 py-2.5 mb-3 text-xs font-bold active:scale-95 transition-transform"
+              style={{ background: COLORS.blush, color: COLORS.tomatoDeep }}
             >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: COLORS.matcha }}
-              />
-              <span
-                className="flex-1 text-sm font-medium"
-                style={{ color: COLORS.ink }}
-              >
-                {it.name}
-              </span>
-              <button
-                onClick={() => onRemove(it.id)}
-                className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                style={{ color: COLORS.inkSoft }}
-                aria-label="削除"
-              >
-                <X size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
+              期限切れを削除
+            </button>
+          )}
+
+          <ul className="space-y-2">
+            {sorted.map((it) => {
+              const state = expiryState(it, now);
+              return (
+                <li
+                  key={it.id}
+                  className="rounded-xl px-4 py-3 fade-up"
+                  style={{
+                    background: COLORS.paper,
+                    border: `1px solid ${state === 'expired' ? COLORS.tomato : COLORS.border}`,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: state === 'fresh' ? COLORS.matcha : EXPIRY_TONE[state] }}
+                    />
+                    <span
+                      data-testid="fridge-name"
+                      className="flex-1 min-w-0 truncate text-sm font-medium"
+                      style={{ color: state === 'expired' ? COLORS.inkSoft : COLORS.ink }}
+                    >
+                      {it.name}
+                    </span>
+                    <button
+                      onClick={() => setEditingId(editingId === it.id ? null : it.id)}
+                      aria-label={`${it.name} の賞味期限を変更`}
+                      className="flex items-center gap-1 text-[11px] rounded-full px-2 py-1 shrink-0"
+                      style={{
+                        color: EXPIRY_TONE[state],
+                        fontWeight: state === 'fresh' ? 400 : 700,
+                      }}
+                    >
+                      <CalendarClock size={12} />
+                      {expiryLabel(it, now)}
+                    </button>
+                    <button
+                      onClick={() => onRemove(it.id)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform shrink-0"
+                      style={{ color: COLORS.inkSoft }}
+                      aria-label={`${it.name} を削除`}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {editingId === it.id && (
+                    <input
+                      type="date"
+                      aria-label={`${it.name} の賞味期限`}
+                      value={it.expiresAt ?? ''}
+                      onChange={(e) => {
+                        onSetExpiry(it.id, e.target.value);
+                        setEditingId(null);
+                      }}
+                      className="w-full mt-2 px-3 py-2 text-sm rounded-xl outline-none"
+                      style={{
+                        background: COLORS.cream,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.ink,
+                        fontFamily: FONT_BODY,
+                      }}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );
