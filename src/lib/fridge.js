@@ -9,6 +9,16 @@ const DAY_MS = 86400 * 1000;
 // この日数以内に切れる食材は「もうすぐ」として扱う。
 export const EXPIRY_SOON_DAYS = 3;
 
+// 品目種別ごとの日持ち。null は「期限を設けない」（米・調味料・乾物など）。
+// 判定できなかったものも staple 扱いにする。短すぎる期限を推測で入れて
+// まだ使える食材を「切れた」と表示するほうが害が大きいため。
+export const DEFAULT_SHELF_LIFE_DAYS = {
+  perishable: 3,
+  vegetable: 7,
+  dairy: 7,
+  staple: null,
+};
+
 const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 const parseIsoDate = (iso) => {
@@ -41,4 +51,20 @@ export function sortByExpiry(items, now = new Date()) {
     if (right === null) return -1;
     return left - right;
   });
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+// ローカル日付を 'YYYY-MM-DD' に。toISOString は UTC なので使わない
+// （日本時間の深夜だと前日になり、期限が1日短くなる）。
+const toIsoDate = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+// 品目種別から既定の賞味期限を出す。期限を設けない種別は undefined。
+export function defaultExpiryFor(kind, now = new Date()) {
+  const days = DEFAULT_SHELF_LIFE_DAYS[kind];
+  if (days == null) return undefined;
+
+  const expiry = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+  return toIsoDate(expiry);
 }

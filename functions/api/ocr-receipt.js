@@ -51,6 +51,13 @@ export async function onRequestPost(context) {
 
 判断に迷う場合は other にしてください。
 
+category が food の品目は、日持ちの種別を kind に入れてください。
+・perishable … 肉、魚、刺身、ひき肉など傷みやすいもの
+・vegetable  … 野菜、果物、きのこ
+・dairy      … 牛乳、ヨーグルト、チーズ、卵、豆腐
+・staple     … 米、麺、乾物、缶詰、調味料など日持ちするもの
+food 以外の品目や、判断に迷う場合は staple にしてください。
+
 品目名は冷蔵庫に登録して読みやすい一般名に正規化してください（例：「北海道産牛乳1L」→「牛乳」）。
 値引き行・小計・ポイントなどの品目でない行は含めないでください。
 
@@ -60,7 +67,7 @@ export async function onRequestPost(context) {
   "date": "購入日 YYYY-MM-DD（不明なら空文字）",
   "total": 合計金額の数値（円）,
   "items": [
-    { "name": "品目名", "price": 価格の数値（円）, "category": "food" または "daily" または "other" }
+    { "name": "品目名", "price": 価格の数値（円）, "category": "food" | "daily" | "other", "kind": "perishable" | "vegetable" | "dairy" | "staple" }
   ]
 }`,
             },

@@ -8,6 +8,9 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const CATEGORIES = ['food', 'daily', 'other'];
 
+// 食材の日持ちの種別。判定できない場合は staple（期限を設けない）に寄せる。
+export const FOOD_KINDS = ['perishable', 'vegetable', 'dairy', 'staple'];
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 // カテゴリ未対応の応答が来ても壊れないよう、isFood からも拾う。
@@ -28,6 +31,7 @@ export function normalizeReceipt(parsed) {
         name: String(i.name).slice(0, MAX_NAME).trim(),
         price: Math.round(Number(i.price)),
         category,
+        kind: FOOD_KINDS.includes(i?.kind) ? i.kind : 'staple',
         // 旧クライアント向けの後方互換
         isFood: category === 'food',
       };

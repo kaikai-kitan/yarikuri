@@ -5,6 +5,7 @@ import BudgetView from '@/components/BudgetView';
 import { Toast } from '@/components/ui';
 import { useMonthlyLimit, useExpenses, useFridge } from '@/lib/hooks';
 import { budgetSummary, foodItemsOf, projectExpense } from '@/lib/budget';
+import { defaultExpiryFor } from '@/lib/fridge';
 import { ocrReceipt } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { newId } from '@/lib/id';
@@ -56,7 +57,12 @@ export default function BudgetPageClient() {
     for (const item of foodItemsOf(pendingReceipt)) {
       if (known.has(item.name)) continue;
       known.add(item.name);
-      additions.push({ id: newId(), name: item.name, addedAt: now });
+      additions.push({
+        id: newId(),
+        name: item.name,
+        addedAt: now,
+        expiresAt: defaultExpiryFor(item.kind),
+      });
     }
     if (additions.length) setFridge([...additions, ...fridge]);
 

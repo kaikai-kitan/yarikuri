@@ -336,4 +336,32 @@ describe('BudgetPageClient', () => {
     await waitFor(() => expect(stored('budget:expenses')[0].total).toBe(2980));
     expect(stored('budget:expenses')[0].items).toEqual([{ name: '牛乳', price: 198, category: 'food' }]);
   });
+
+  test('dates perishable ingredients when they enter the fridge', async () => {
+    // Arrange
+    ocrReceipt.mockResolvedValue(
+      receipt({
+        items: [
+          { name: '豚こま', price: 398, category: 'food', kind: 'perishable' },
+          { name: 'しょうゆ', price: 268, category: 'food', kind: 'staple' },
+        ],
+      })
+    );
+    render(<BudgetPageClient />);
+    await scan();
+    await screen.findByRole('button', { name: '記録する' });
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: '記録する' }));
+
+    // Assert
+    await waitFor(() => expect(stored('fridge:items')).toHaveLength(2));
+    const byName = Object.fromEntries(stored('fridge:items').map((f) => [f.name, f]));
+    const inThreeDays = new Date(Date.now() + 3 * 86400000);
+    const pad = (n) => String(n).padStart(2, '0');
+    const expected = `${inThreeDays.getFullYear()}-${pad(inThreeDays.getMonth() + 1)}-${pad(inThreeDays.getDate())}`;
+
+    expect(byName['豚こま'].expiresAt).toBe(expected);
+    expect(byName['しょうゆ'].expiresAt).toBeUndefined();
+  });
 });

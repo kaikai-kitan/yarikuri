@@ -15,7 +15,9 @@ describe('normalizeReceipt', () => {
 
     // Assert
     expect(r).toMatchObject({ store: 'スーパーA', date: '2026-08-21', total: 500 });
-    expect(r.items).toEqual([{ name: '牛乳', price: 198, category: 'food', isFood: true }]);
+    expect(r.items).toEqual([
+      { name: '牛乳', price: 198, category: 'food', kind: 'staple', isFood: true },
+    ]);
   });
 
   test('drops items without a name or a numeric price', () => {
@@ -93,5 +95,27 @@ describe('normalizeReceipt', () => {
     const r = normalizeReceipt({ store: 'A', total: 300 });
     expect(r.items).toEqual([]);
     expect(r.total).toBe(300);
+  });
+
+  test('passes a known food kind through', () => {
+    const r = normalizeReceipt({
+      total: 3,
+      items: [
+        { name: '豚こま', price: 1, category: 'food', kind: 'perishable' },
+        { name: 'キャベツ', price: 1, category: 'food', kind: 'vegetable' },
+        { name: 'しょうゆ', price: 1, category: 'food', kind: 'staple' },
+      ],
+    });
+    expect(r.items.map((i) => i.kind)).toEqual(['perishable', 'vegetable', 'staple']);
+  });
+
+  test('falls back to staple for an unknown kind rather than guessing a short life', () => {
+    const r = normalizeReceipt({ total: 1, items: [{ name: '謎', price: 1, category: 'food', kind: 'frozen' }] });
+    expect(r.items[0].kind).toBe('staple');
+  });
+
+  test('falls back to staple when no kind is given', () => {
+    const r = normalizeReceipt({ total: 1, items: [{ name: '牛乳', price: 1, category: 'food' }] });
+    expect(r.items[0].kind).toBe('staple');
   });
 });

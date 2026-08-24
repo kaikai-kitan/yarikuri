@@ -4,6 +4,8 @@ import {
   expiryState,
   sortByExpiry,
   EXPIRY_SOON_DAYS,
+  DEFAULT_SHELF_LIFE_DAYS,
+  defaultExpiryFor,
 } from '@/lib/fridge';
 
 const now = new Date(2026, 7, 24); // 2026-08-24
@@ -107,5 +109,43 @@ describe('sortByExpiry', () => {
   test('tolerates an empty or missing list', () => {
     expect(sortByExpiry([], now)).toEqual([]);
     expect(sortByExpiry(undefined, now)).toEqual([]);
+  });
+});
+
+describe('default shelf life', () => {
+  test('defines a shelf life per kind of food', () => {
+    expect(DEFAULT_SHELF_LIFE_DAYS.perishable).toBe(3);
+    expect(DEFAULT_SHELF_LIFE_DAYS.vegetable).toBe(7);
+    expect(DEFAULT_SHELF_LIFE_DAYS.dairy).toBe(7);
+    expect(DEFAULT_SHELF_LIFE_DAYS.staple).toBeNull();
+  });
+
+  test('dates meat and fish three days out', () => {
+    expect(defaultExpiryFor('perishable', now)).toBe('2026-08-27');
+  });
+
+  test('dates vegetables and dairy a week out', () => {
+    // 2026-08-24 + 7日 = 2026-08-31（8月は31日まで）
+    expect(defaultExpiryFor('vegetable', now)).toBe('2026-08-31');
+    expect(defaultExpiryFor('dairy', now)).toBe('2026-08-31');
+  });
+
+  test('leaves staples without an expiry', () => {
+    expect(defaultExpiryFor('staple', now)).toBeUndefined();
+  });
+
+  test('leaves an unknown kind without an expiry rather than guessing', () => {
+    expect(defaultExpiryFor(undefined, now)).toBeUndefined();
+    expect(defaultExpiryFor('mystery', now)).toBeUndefined();
+  });
+
+  test('crosses a month boundary correctly', () => {
+    expect(defaultExpiryFor('perishable', new Date(2026, 7, 30))).toBe('2026-09-02');
+  });
+
+  test('uses the local date, not UTC', () => {
+    // 日本時間の深夜は UTC ではまだ前日。ずれると期限が1日短くなる
+    const lateNight = new Date(2026, 7, 24, 23, 30);
+    expect(defaultExpiryFor('perishable', lateNight)).toBe('2026-08-27');
   });
 });
