@@ -31,8 +31,8 @@ const plan = (overrides = {}) => ({
 });
 
 const renderView = (props = {}) => {
-  const handlers = { onClearPlan: vi.fn(), onToggleCooked: vi.fn() };
-  render(<WeekPlanView plan={plan()} now={NOW} {...handlers} {...props} />);
+  const handlers = { onClearPlan: vi.fn(), onToggleCooked: vi.fn(), onFetchLink: vi.fn() };
+  render(<WeekPlanView plan={plan()} now={NOW} links={{}} {...handlers} {...props} />);
   return handlers;
 };
 
@@ -196,5 +196,71 @@ describe('WeekPlanView — marking a day as cooked', () => {
   test('shows no progress before anything is cooked', () => {
     renderView();
     expect(screen.queryByText(/ぶん作りました/)).not.toBeInTheDocument();
+  });
+});
+
+describe('WeekPlanView — linking to a real recipe', () => {
+  const link = {
+    title: '基本の肉じゃが',
+    url: 'https://recipe.rakuten.co.jp/recipe/1/',
+    imageUrl: 'https://image.example/1.jpg',
+    materials: ['豚こま切れ 200g', 'じゃがいも 3個'],
+    indication: '約30分',
+    cost: '300円前後',
+  };
+
+  const onePlan = () => plan({ days: [day(1, { name: '肉じゃが' })] });
+
+  test('offers to look up a recipe for each dish', () => {
+    renderView({ plan: onePlan() });
+    expect(screen.getByRole('button', { name: '肉じゃが のレシピを見る' })).toBeInTheDocument();
+  });
+
+  test('asks for the recipe of the day that was tapped', () => {
+    const { onFetchLink } = renderView({ plan: plan({ days: [day(1), day(2)] }) });
+    fireEvent.click(screen.getByRole('button', { name: '料理2 のレシピを見る' }));
+    expect(onFetchLink).toHaveBeenCalledWith(1);
+  });
+
+  test('says it is looking while the request is out', () => {
+    renderView({ plan: onePlan(), links: { 0: 'loading' } });
+    expect(screen.getByText('レシピを探しています…')).toBeInTheDocument();
+  });
+
+  test('shows the recipe it found, with a link to the source', () => {
+    // Arrange & Act
+    renderView({ plan: onePlan(), links: { 0: link } });
+
+    // Assert
+    const anchor = screen.getByRole('link', { name: /基本の肉じゃが/ });
+    expect(anchor).toHaveAttribute('href', 'https://recipe.rakuten.co.jp/recipe/1/');
+    expect(anchor).toHaveAttribute('target', '_blank');
+    expect(anchor).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  test('lists the ingredients the recipe calls for', () => {
+    renderView({ plan: onePlan(), links: { 0: link } });
+    expect(screen.getByText('豚こま切れ 200g、じゃがいも 3個')).toBeInTheDocument();
+  });
+
+  test('says so when no recipe matched', () => {
+    renderView({ plan: onePlan(), links: { 0: null } });
+    expect(screen.getByText('レシピが見つかりませんでした')).toBeInTheDocument();
+  });
+
+  test('credits the source once a recipe is shown', () => {
+    renderView({ plan: onePlan(), links: { 0: link } });
+    const credit = screen.getByRole('link', { name: /楽天ウェブサービス/ });
+    expect(credit).toHaveAttribute('href', 'https://webservice.rakuten.co.jp/');
+  });
+
+  test('shows no credit before anything is looked up', () => {
+    renderView({ plan: onePlan() });
+    expect(screen.queryByRole('link', { name: /楽天ウェブサービス/ })).not.toBeInTheDocument();
+  });
+
+  test('hides the lookup entirely when the integration is off', () => {
+    renderView({ plan: onePlan(), linkingAvailable: false });
+    expect(screen.queryByRole('button', { name: '肉じゃが のレシピを見る' })).not.toBeInTheDocument();
   });
 });

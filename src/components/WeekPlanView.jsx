@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { CalendarDays, ShoppingBasket, ArrowDown, Plus, Check } from 'lucide-react';
+import { CalendarDays, ShoppingBasket, ArrowDown, Plus, Check, BookOpen, Loader2 } from 'lucide-react';
 import { COLORS } from '../theme';
 import { planDayDate, currentDayIndex, cookedCount } from '../lib/plan';
 
@@ -20,13 +20,22 @@ const shortDate = (iso) => {
 
 const weekday = (iso) => WEEKDAYS[parseIso(iso).getDay()];
 
-export default function WeekPlanView({ plan, now = new Date(), onClearPlan, onToggleCooked }) {
+export default function WeekPlanView({
+  plan,
+  now = new Date(),
+  links = {},
+  linkingAvailable = true,
+  onClearPlan,
+  onToggleCooked,
+  onFetchLink,
+}) {
   const [confirming, setConfirming] = useState(false);
 
   const todayIndex = currentDayIndex(plan, now);
   const lastIndex = plan.days.length - 1;
   const shoppingTotal = plan.shoppingList.reduce((sum, s) => sum + (s.estimatedPrice || 0), 0);
   const cooked = cookedCount(plan);
+  const showsAnyLink = Object.values(links).some((l) => l && typeof l === 'object');
 
   return (
     <div className="mb-6">
@@ -194,6 +203,18 @@ export default function WeekPlanView({ plan, now = new Date(), onClearPlan, onTo
                 <span className="text-[11px]" style={{ color: COLORS.inkSoft }}>
                   1人前 {yen(d.totalCost)}・{d.cookingTime}
                 </span>
+                <span className="flex items-center gap-2 shrink-0">
+                {linkingAvailable && links[i] === undefined && (
+                  <button
+                    onClick={() => onFetchLink(i)}
+                    aria-label={`${d.name} のレシピを見る`}
+                    className="flex items-center gap-1 text-[11px] rounded-full px-3 py-1.5 active:scale-95 transition-transform"
+                    style={{ border: `1px solid ${COLORS.border}`, color: COLORS.gold }}
+                  >
+                    <BookOpen size={12} />
+                    レシピを見る
+                  </button>
+                )}
                 <button
                   onClick={() => onToggleCooked(i)}
                   aria-label={d.cookedAt ? `${d.name} を作っていないことにする` : `${d.name} を作った`}
@@ -207,11 +228,71 @@ export default function WeekPlanView({ plan, now = new Date(), onClearPlan, onTo
                   <Check size={12} />
                   {d.cookedAt ? '作りました' : '作った'}
                 </button>
+                </span>
               </div>
+
+              {links[i] === 'loading' && (
+                <p
+                  className="flex items-center gap-1.5 text-[11px] mt-2"
+                  style={{ color: COLORS.inkSoft }}
+                >
+                  <Loader2 className="spin-slow" size={12} />
+                  レシピを探しています…
+                </p>
+              )}
+
+              {links[i] === null && (
+                <p className="text-[11px] mt-2" style={{ color: COLORS.inkSoft }}>
+                  レシピが見つかりませんでした
+                </p>
+              )}
+
+              {links[i] && typeof links[i] === 'object' && (
+                <div
+                  className="rounded-xl mt-2 p-3"
+                  style={{ background: COLORS.cream, border: `1px solid ${COLORS.border}` }}
+                >
+                  <a
+                    href={links[i].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs font-bold"
+                    style={{ color: COLORS.tomato }}
+                  >
+                    {links[i].imageUrl && (
+                      <img
+                        src={links[i].imageUrl}
+                        alt=""
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
+                      />
+                    )}
+                    <span className="min-w-0">{links[i].title}</span>
+                  </a>
+                  {links[i].materials.length > 0 && (
+                    <p className="text-[10px] mt-1.5" style={{ color: COLORS.inkSoft }}>
+                      {links[i].materials.join('、')}
+                    </p>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
+
+      {showsAnyLink && (
+        <p className="text-[10px] mt-3 text-center" style={{ color: COLORS.inkSoft }}>
+          レシピ情報{' '}
+          <a
+            href="https://webservice.rakuten.co.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: COLORS.inkSoft, textDecoration: 'underline' }}
+          >
+            Supported by 楽天ウェブサービス
+          </a>
+        </p>
+      )}
     </div>
   );
 }

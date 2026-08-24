@@ -61,3 +61,20 @@ export async function planWeek({ fridge, flyerItems = [], budget = null, startDa
   }
   return data.plan;
 }
+
+// 料理名から楽天レシピの実在ページを引く。
+// リンクが出ないだけで献立は使えるため、失敗しても投げずに link: null を返す。
+export async function fetchRecipeLink(name) {
+  try {
+    const res = await fetch('/api/recipe-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { configured: true, link: null };
+    return { configured: data.configured !== false, link: data.link ?? null };
+  } catch {
+    return { configured: true, link: null };
+  }
+}

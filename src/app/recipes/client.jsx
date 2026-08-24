@@ -12,7 +12,7 @@ import { toggleCooked } from '@/lib/plan';
 import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
 import { fridgeForSuggestion, expiringSoonNames } from '@/lib/fridge';
 import { newId } from '@/lib/id';
-import { ocrFlyer, suggestRecipes, planWeek } from '@/lib/api';
+import { ocrFlyer, suggestRecipes, planWeek, fetchRecipeLink } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { COLORS } from '@/theme';
 
@@ -26,6 +26,8 @@ export default function RecipesPageClient() {
   const [currentRecipes, setCurrentRecipes] = useState([]);
   const [currentMeta, setCurrentMeta] = useState(null);
   const [searching, setSearching] = useState(null);
+  const [recipeLinks, setRecipeLinks] = useState({});
+  const [linkingAvailable, setLinkingAvailable] = useState(true);
   const [showReward, setShowReward] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [recipeOpen, setRecipeOpen] = useState(null);
@@ -99,12 +101,33 @@ export default function RecipesPageClient() {
           startDate: todayIso(),
         });
         setWeekPlan({ ...plan, createdAt: Date.now() });
+        setRecipeLinks({});
         showToast(`${plan.days.length}日分の献立を組みました`);
       } catch (e) {
         showToast(e.message || '献立の作成に失敗しました', 'error');
       } finally { setSearching(null); }
     });
   }, [fridge, monthlyLimit, expenses, setWeekPlan]);
+
+  // 献立1日分のレシピを引く。1リクエスト/秒の制限があるため、タップされた分だけ取りに行く。
+  const fetchLinkFor = async (index) => {
+    const target = weekPlan?.days?.[index];
+    if (!target) return;
+
+    setRecipeLinks((prev) => ({ ...prev, [index]: 'loading' }));
+    const { configured, link } = await fetchRecipeLink(target.name);
+
+    if (!configured) {
+      // 連携が設定されていなければ、以後この導線ごと出さない
+      setLinkingAvailable(false);
+      setRecipeLinks((prev) => {
+        const { [index]: _dropped, ...rest } = prev;
+        return rest;
+      });
+      return;
+    }
+    setRecipeLinks((prev) => ({ ...prev, [index]: link }));
+  };
 
   // 作った日を切り替える。作ったことにした場合だけ、使った食材を冷蔵庫から減らす。
   // 取り消しでは戻さない（買い直したかどうかは分からないため）。
@@ -165,8 +188,14 @@ export default function RecipesPageClient() {
           weekPlan ? (
             <WeekPlanView
               plan={weekPlan}
-              onClearPlan={() => setWeekPlan(null)}
+              onClearPlan={() => {
+                setWeekPlan(null);
+                setRecipeLinks({});
+              }}
               onToggleCooked={toggleCookedDay}
+              links={recipeLinks}
+              linkingAvailable={linkingAvailable}
+              onFetchLink={fetchLinkFor}
             />
           ) : null
         }
