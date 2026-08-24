@@ -82,3 +82,47 @@ export function matchCategory(dishName, categories) {
       .find((c) => normalize(c.name).includes(dish)) ?? null
   );
 }
+
+// 誘導先は楽天レシピのページに限る。
+// 応答に別ホストのURLが混ざっても、そこへは飛ばさない。
+const RECIPE_HOST = 'recipe.rakuten.co.jp';
+
+const isRakutenRecipeUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === RECIPE_HOST;
+  } catch {
+    return false;
+  }
+};
+
+const isHttps = (url) => {
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+// ランキング応答から、表示に使う1件を取り出す。
+export function normalizeRecipeLink(result) {
+  const top = asList(result?.result)[0];
+  if (!top) return null;
+
+  const title = isFilledString(top.recipeTitle) ? top.recipeTitle.trim() : '';
+  const url = isFilledString(top.recipeUrl) ? top.recipeUrl.trim() : '';
+  if (!title || !isRakutenRecipeUrl(url)) return null;
+
+  const imageUrl = isFilledString(top.foodImageUrl) && isHttps(top.foodImageUrl)
+    ? top.foodImageUrl.trim()
+    : '';
+
+  return {
+    title,
+    url,
+    imageUrl,
+    materials: asList(top.recipeMaterial).filter(isFilledString).map((m) => m.trim()),
+    indication: isFilledString(top.recipeIndication) ? top.recipeIndication.trim() : '',
+    cost: isFilledString(top.recipeCost) ? top.recipeCost.trim() : '',
+  };
+}

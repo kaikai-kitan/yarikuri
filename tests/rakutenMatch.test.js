@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { flattenCategories, matchCategory } from '../functions/api/_rakuten.js';
+import { flattenCategories, matchCategory, normalizeRecipeLink } from '../functions/api/_rakuten.js';
 
 // 楽天レシピカテゴリ一覧APIの応答を模したもの（実際の項目名に合わせている）
 const categoryResult = {
@@ -87,5 +87,80 @@ describe('matchCategory', () => {
   test('does not match on a single character', () => {
     // 「肉」だけで肉じゃがに繋げるのは乱暴なので、1文字の一致は採らない
     expect(matchCategory('肉', [{ id: 'a', name: '肉じゃが' }])).toBeNull();
+  });
+});
+
+// 楽天レシピ カテゴリ別ランキングAPIの応答を模したもの
+const rankingResult = {
+  result: [
+    {
+      recipeTitle: '基本の肉じゃが',
+      recipeUrl: 'https://recipe.rakuten.co.jp/recipe/1234567890/',
+      foodImageUrl: 'https://image.example/1234567890.jpg',
+      recipeMaterial: ['豚こま切れ 200g', 'じゃがいも 3個', 'にんじん 1本'],
+      recipeIndication: '約30分',
+      recipeCost: '300円前後',
+      recipeDescription: 'ほくほくの定番',
+      rank: '1',
+    },
+    { recipeTitle: '2位のレシピ', recipeUrl: 'https://recipe.rakuten.co.jp/recipe/2/' },
+  ],
+};
+
+describe('normalizeRecipeLink', () => {
+  test('takes the top ranked recipe', () => {
+    const link = normalizeRecipeLink(rankingResult);
+    expect(link).toMatchObject({
+      title: '基本の肉じゃが',
+      url: 'https://recipe.rakuten.co.jp/recipe/1234567890/',
+      imageUrl: 'https://image.example/1234567890.jpg',
+      indication: '約30分',
+      cost: '300円前後',
+    });
+  });
+
+  test('keeps the ingredient list', () => {
+    expect(normalizeRecipeLink(rankingResult).materials)
+      .toEqual(['豚こま切れ 200g', 'じゃがいも 3個', 'にんじん 1本']);
+  });
+
+  test('returns nothing when the ranking is empty', () => {
+    expect(normalizeRecipeLink({ result: [] })).toBeNull();
+    expect(normalizeRecipeLink({})).toBeNull();
+    expect(normalizeRecipeLink(null)).toBeNull();
+  });
+
+  test('returns nothing without a title or a link', () => {
+    expect(normalizeRecipeLink({ result: [{ recipeUrl: 'https://x' }] })).toBeNull();
+    expect(normalizeRecipeLink({ result: [{ recipeTitle: '肉じゃが' }] })).toBeNull();
+  });
+
+  test('refuses a link that is not a rakuten recipe page', () => {
+    // 応答に別ホストのURLが混ざっても、そこへは誘導しない
+    const link = normalizeRecipeLink({
+      result: [{ recipeTitle: '肉じゃが', recipeUrl: 'https://evil.example/phish' }],
+    });
+    expect(link).toBeNull();
+  });
+
+  test('drops a non-https image rather than mixing content', () => {
+    const link = normalizeRecipeLink({
+      result: [{ recipeTitle: '肉じゃが', recipeUrl: 'https://recipe.rakuten.co.jp/recipe/1/', foodImageUrl: 'http://image.example/a.jpg' }],
+    });
+    expect(link.imageUrl).toBe('');
+  });
+
+  test('fills in the fields that are missing', () => {
+    const link = normalizeRecipeLink({
+      result: [{ recipeTitle: '肉じゃが', recipeUrl: 'https://recipe.rakuten.co.jp/recipe/1/' }],
+    });
+    expect(link).toMatchObject({ imageUrl: '', materials: [], indication: '', cost: '' });
+  });
+
+  test('keeps only string entries in the ingredient list', () => {
+    const link = normalizeRecipeLink({
+      result: [{ recipeTitle: '肉じゃが', recipeUrl: 'https://recipe.rakuten.co.jp/recipe/1/', recipeMaterial: ['卵', 42, null] }],
+    });
+    expect(link.materials).toEqual(['卵']);
   });
 });
