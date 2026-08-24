@@ -63,7 +63,8 @@ export async function planWeek({ fridge, flyerItems = [], budget = null, startDa
 }
 
 // 料理名から楽天レシピの実在ページを引く。
-// リンクが出ないだけで献立は使えるため、失敗しても投げずに link: null を返す。
+// リンクが出ないだけで献立は使えるため、失敗しても投げない。
+// ただし「見つからない」と「連携が壊れている」を区別できるよう reason を返す。
 export async function fetchRecipeLink(name) {
   try {
     const res = await fetch('/api/recipe-link', {
@@ -72,9 +73,13 @@ export async function fetchRecipeLink(name) {
       body: JSON.stringify({ name }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { configured: true, link: null };
-    return { configured: data.configured !== false, link: data.link ?? null };
+    if (!res.ok) return { configured: true, link: null, reason: 'upstream_error' };
+    return {
+      configured: data.configured !== false,
+      link: data.link ?? null,
+      reason: data.reason ?? null,
+    };
   } catch {
-    return { configured: true, link: null };
+    return { configured: true, link: null, reason: 'upstream_error' };
   }
 }

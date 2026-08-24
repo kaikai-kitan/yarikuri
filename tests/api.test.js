@@ -144,22 +144,34 @@ describe('fetchRecipeLink', () => {
     // Assert
     expect(fn).toHaveBeenCalledWith('/api/recipe-link', expect.objectContaining({ method: 'POST' }));
     expect(bodyOf(fn)).toEqual({ name: '肉じゃが' });
-    expect(result).toEqual({ configured: true, link });
+    expect(result).toEqual({ configured: true, link, reason: null });
   });
 
   test('reports that no recipe was found', async () => {
-    mockFetch({ configured: true, link: null });
-    expect(await fetchRecipeLink('宇宙料理')).toEqual({ configured: true, link: null });
+    mockFetch({ configured: true, link: null, reason: 'no_match' });
+    expect(await fetchRecipeLink('宇宙料理')).toEqual({
+      configured: true,
+      link: null,
+      reason: 'no_match',
+    });
   });
 
   test('reports that the integration is not configured', async () => {
-    mockFetch({ configured: false, link: null });
-    expect(await fetchRecipeLink('肉じゃが')).toEqual({ configured: false, link: null });
+    mockFetch({ configured: false, link: null, reason: 'not_configured' });
+    expect(await fetchRecipeLink('肉じゃが')).toEqual({
+      configured: false,
+      link: null,
+      reason: 'not_configured',
+    });
   });
 
   test('reports no link rather than throwing when the server fails', async () => {
     // リンクが出ないだけで献立は使えるため、失敗を握って null を返す
     mockFetch({ error: 'なにか失敗' }, false, 500);
-    expect(await fetchRecipeLink('肉じゃが')).toEqual({ configured: true, link: null });
+    expect(await fetchRecipeLink('肉じゃが')).toEqual({
+      configured: true,
+      link: null,
+      reason: 'upstream_error',
+    });
   });
 });

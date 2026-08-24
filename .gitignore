@@ -4,6 +4,7 @@ dist-ssr
 .next
 out
 .env
+.dev.vars
 .env.local
 .env.*.local
 .vercel

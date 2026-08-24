@@ -13,6 +13,7 @@ import { budgetSummary, recipeBudgetContext } from '@/lib/budget';
 import { fridgeForSuggestion, expiringSoonNames } from '@/lib/fridge';
 import { newId } from '@/lib/id';
 import { ocrFlyer, suggestRecipes, planWeek, fetchRecipeLink } from '@/lib/api';
+import { recipeLinkErrorMessage } from '@/lib/recipeLink';
 import { compressImage } from '@/lib/image';
 import { COLORS } from '@/theme';
 
@@ -115,7 +116,7 @@ export default function RecipesPageClient() {
     if (!target) return;
 
     setRecipeLinks((prev) => ({ ...prev, [index]: 'loading' }));
-    const { configured, link } = await fetchRecipeLink(target.name);
+    const { configured, link, reason } = await fetchRecipeLink(target.name);
 
     if (!configured) {
       // 連携が設定されていなければ、以後この導線ごと出さない
@@ -126,6 +127,10 @@ export default function RecipesPageClient() {
       });
       return;
     }
+    // 見つからなかっただけなら黙る。認証切れなどは知らせないと原因が分からない。
+    const message = recipeLinkErrorMessage(reason);
+    if (message) showToast(message, 'error');
+
     setRecipeLinks((prev) => ({ ...prev, [index]: link }));
   };
 

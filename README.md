@@ -75,9 +75,11 @@ git push -u origin main
 3. ビルド設定:
    - **Framework preset**: `Vite`
    - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
+   - **Build output directory**: `out`
 4. **Environment variables** に追加:
    - `ANTHROPIC_API_KEY` = 取得したAPIキー
+   - `RAKUTEN_APPLICATION_ID` = 楽天のApplication ID (UUID形式)
+   - `RAKUTEN_ACCESS_KEY` = 楽天のAccess Key (`pk_` で始まる)
 5. 「Save and Deploy」
 
 デプロイ後、`https://<project>.pages.dev` でアクセスできます。
@@ -110,10 +112,13 @@ const AD_SLOTS = {
 ```bash
 npm install
 npm install -g wrangler        # Cloudflare CLI
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .dev.vars   # Cloudflare 用の環境変数ファイル
-wrangler pages dev dist --compatibility-date=2024-01-01
-# 別ターミナルで
-npm run build -- --watch
+cat > .dev.vars <<'ENV'                          # Cloudflare 用の環境変数ファイル (git管理外)
+ANTHROPIC_API_KEY=sk-ant-...
+RAKUTEN_APPLICATION_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+RAKUTEN_ACCESS_KEY=pk_...
+ENV
+npm run build                                    # out/ を生成
+wrangler pages dev out --compatibility-date=2024-01-01
 ```
 
 ---
@@ -171,6 +176,20 @@ Sonnet 4.5 ($3/$15) より3倍安い Haiku 4.5 ($1/$5) を採用。構造化さ�
 - `/recipes` → レシピ
 
 `public/_redirects` の `/* /index.html 200` により、Cloudflare Pages が全ルートを index.html にフォールバックします。
+
+### 楽天レシピ連携
+
+`https://webservice.rakuten.co.jp/app/list` でアプリを作成すると、UUID形式の
+**Application ID** と `pk_` で始まる **Access Key** が発行される。両方を環境変数に
+設定しないと `/api/recipe-link` は `reason: 'not_configured'` を返して機能ごと止まる。
+
+旧ドメイン `app.rakuten.co.jp/services/api/...` は19桁数字のapplicationIdしか
+受け付けないため、UUIDを渡すと `wrong_parameter` になる。新ゲートウェイ
+`openapi.rakuten.co.jp/recipems/api/Recipe/...` を使い、Access Keyは
+`accessKey` ヘッダで送る (クエリでも通るがURLがログに残る)。
+
+制限は約1リクエスト/秒。カテゴリ一覧はウォームインスタンス内で24時間キャッシュし、
+続けて叩く場合のみ1.1秒あける。
 
 ### サーバー側レート制限
 
