@@ -55,12 +55,13 @@ ${budgetBlock(budget)}
     "description": "ひとこと説明（30字以内）",
     "usedFromFridge": ["使う冷蔵庫の食材名"],
     "usedFromDeals": ["使う特売品名"],
-    "missingIngredients": [{ "name": "不足食材名", "estimatedPrice": 概算円 }],
+    "missingIngredients": [{ "name": "不足食材名", "estimatedPrice": 概算円, "buyAt": "購入先スーパー名(特売にあれば最安の店名を、なければ空文字)" }],
     "totalCost": 1人前の推定コスト円,
     "cookingTime": "約20分"
   }
 ]
 
+同じ食材が複数のスーパーで特売されている場合は、最安値のスーパーを推奨し、不足食材の \`buyAt\` にその店名を含めてください。
 冷蔵庫が空でも特売品中心で作れるレシピを提案してください。
 両方とも空なら空配列 [] を返してください。`,
         },

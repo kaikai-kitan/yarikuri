@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useFridge, useHistory } from '@/lib/hooks';
+import { useFavorites, useFridge, useHistory } from '@/lib/hooks';
 
 describe('useFridge', () => {
   test('drops stored entries that are missing an id or name', async () => {
@@ -157,5 +157,94 @@ describe('useHistory', () => {
     // Assert
     await waitFor(() => expect(result.current[2]).toBe(true));
     expect(result.current[0].map((h) => h.id)).toEqual(['h-1']);
+  });
+});
+
+describe('useFavorites', () => {
+  const makeRecipe = (name = '肉じゃが') => ({
+    name,
+    emoji: '🥔',
+    description: '定番の煮物',
+    totalCost: 320,
+  });
+
+  test('restores saved favorite recipes from localStorage', async () => {
+    // Arrange
+    const saved = [{ id: 'fav-1', savedAt: 1, recipe: makeRecipe() }];
+    localStorage.setItem('recipes:favorites', JSON.stringify(saved));
+
+    // Act
+    const { result } = renderHook(() => useFavorites());
+
+    // Assert
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0]).toEqual(saved);
+  });
+
+  test('drops stored entries without a usable recipe name', async () => {
+    // Arrange
+    localStorage.setItem(
+      'recipes:favorites',
+      JSON.stringify([
+        { id: 'fav-1', savedAt: 1, recipe: makeRecipe() },
+        { id: 'fav-2', savedAt: 2, recipe: { name: '  ' } },
+        { id: 'fav-3', savedAt: 3 },
+        null,
+      ])
+    );
+
+    // Act
+    const { result } = renderHook(() => useFavorites());
+
+    // Assert
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    expect(result.current[0].map((favorite) => favorite.id)).toEqual(['fav-1']);
+  });
+
+  test('adds a favorite and persists its recipe snapshot', async () => {
+    // Arrange
+    const { result } = renderHook(() => useFavorites());
+    await waitFor(() => expect(result.current[2]).toBe(true));
+
+    // Act
+    act(() => result.current[1](makeRecipe()));
+
+    // Assert
+    await waitFor(() => expect(result.current[0]).toHaveLength(1));
+    expect(result.current[0][0].recipe.name).toBe('肉じゃが');
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('recipes:favorites'))[0].recipe.name).toBe('肉じゃが')
+    );
+  });
+
+  test('toggles the same normalized recipe name off instead of duplicating it', async () => {
+    // Arrange
+    const { result } = renderHook(() => useFavorites());
+    await waitFor(() => expect(result.current[2]).toBe(true));
+    act(() => result.current[1](makeRecipe('肉じゃが')));
+
+    // Act
+    act(() => result.current[1](makeRecipe('  肉じゃが  ')));
+
+    // Assert
+    expect(result.current[0]).toEqual([]);
+  });
+
+  test('keeps both favorites when two toggles are batched', async () => {
+    // Arrange
+    const { result } = renderHook(() => useFavorites());
+    await waitFor(() => expect(result.current[2]).toBe(true));
+
+    // Act
+    act(() => {
+      result.current[1](makeRecipe('肉じゃが'));
+      result.current[1](makeRecipe('親子丼'));
+    });
+
+    // Assert
+    expect(result.current[0].map((favorite) => favorite.recipe.name)).toEqual([
+      '親子丼',
+      '肉じゃが',
+    ]);
   });
 });

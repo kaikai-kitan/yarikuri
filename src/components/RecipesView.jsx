@@ -1,166 +1,80 @@
 'use client';
-import { useRef } from 'react';
-import { Camera, Refrigerator, ChefHat, Wallet, Play, CalendarDays } from 'lucide-react';
+import { Star, Wallet } from 'lucide-react';
 import { COLORS } from '../theme';
+import { isFavoriteRecipe, recipeFavoriteKey } from '../lib/favorites';
 import { SectionHeader, EmptyState } from './ui';
-import AdSlot from './AdSlot';
 
+/**
+ * レシピタブ — お気に入り一覧のみを表示するシンプルなビュー。
+ * 検索・提案フローは AppNav のV字メニュー経由で別途表示される。
+ */
 export default function RecipesView({
+  favorites = [],
+  onToggleFavorite = () => {},
+  onOpenRecipe,
+}) {
+  return (
+    <div className="fade-up">
+      <SectionHeader
+        eyebrow="FAVORITES"
+        title="お気に入りレシピ"
+        sub="星マークで保存したレシピをここで確認できます。"
+      />
+
+      {favorites.length === 0 ? (
+        <EmptyState
+          icon={<Star size={32} />}
+          title="お気に入りはまだありません"
+          desc="レシピ提案で表示されたレシピの星マークを押すと、ここに保存されます"
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="text-xs text-center" style={{ color: COLORS.inkSoft }}>
+            保存したレシピ {favorites.length}件
+          </div>
+          {favorites.map((favorite) => (
+            <RecipeCard
+              key={favorite.id}
+              recipe={favorite.recipe}
+              onOpen={() => onOpenRecipe(favorite.recipe)}
+              favorite
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * レシピ提案の結果表示用ビュー。
+ * AppNav のV字メニューから提案フローを実行した際に表示される。
+ */
+export function RecipeResultsView({
   currentRecipes,
   currentMeta,
-  onSearchFromFlyer,
-  onSearchFromFridge,
-  onPlanWeek,
   onOpenRecipe,
-  fridgeCount,
-  adSlot,
+  favorites = [],
+  onToggleFavorite = () => {},
   expiringNames = [],
   planSlot = null,
 }) {
-  const fileRef = useRef(null);
-
   return (
     <div className="fade-up">
       <SectionHeader
         eyebrow="AI SUGGESTIONS"
-        title="レシピを探す"
-        sub="チラシ画像か冷蔵庫の在庫からレシピを提案します。"
+        title="レシピ提案結果"
+        sub="冷蔵庫の食材とチラシ情報からAIが提案しました。"
       />
-
-      {/* 広告サポートの注記 */}
-      <div
-        className="rounded-2xl px-4 py-3 flex items-center gap-3 mb-4"
-        style={{
-          background: COLORS.paper,
-          border: `1px solid ${COLORS.border}`,
-        }}
-      >
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ background: COLORS.blush, color: COLORS.tomato }}
-        >
-          <Play size={14} fill={COLORS.tomato} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-bold" style={{ color: COLORS.ink }}>
-            無料・広告サポート
-          </div>
-          <div className="text-[11px]" style={{ color: COLORS.inkSoft }}>
-            検索ごとに15秒の広告をご視聴いただきます
-          </div>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="space-y-3 mb-6">
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="w-full rounded-2xl p-5 flex items-center gap-4 active:scale-[0.99] transition-transform"
-          style={{
-            background: `linear-gradient(135deg, ${COLORS.tomato} 0%, ${COLORS.tomatoDeep} 100%)`,
-            color: COLORS.paper,
-          }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.18)' }}
-          >
-            <Camera size={22} />
-          </div>
-          <div className="flex-1 text-left">
-            <div className="text-sm font-bold mb-0.5">
-              チラシ画像を読み取ってレシピを探す
-            </div>
-            <div className="text-xs opacity-85">
-              撮影またはアルバムから画像を選択
-            </div>
-          </div>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onSearchFromFlyer(f);
-            e.target.value = '';
-          }}
-          style={{ display: 'none' }}
-        />
-
-        <button
-          onClick={onSearchFromFridge}
-          disabled={fridgeCount === 0}
-          className="w-full rounded-2xl p-5 flex items-center gap-4 active:scale-[0.99] transition-transform"
-          style={{
-            background:
-              fridgeCount === 0
-                ? COLORS.border
-                : `linear-gradient(135deg, ${COLORS.matcha} 0%, #2D4530 100%)`,
-            color: fridgeCount === 0 ? COLORS.inkSoft : COLORS.paper,
-            cursor: fridgeCount === 0 ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{
-              background:
-                fridgeCount === 0
-                  ? 'rgba(0,0,0,0.05)'
-                  : 'rgba(255,255,255,0.18)',
-            }}
-          >
-            <Refrigerator size={22} />
-          </div>
-          <div className="flex-1 text-left">
-            <div className="text-sm font-bold mb-0.5">
-              冷蔵庫にあるものからレシピを探す
-            </div>
-            <div className="text-xs opacity-85">
-              {fridgeCount === 0
-                ? '先に冷蔵庫タブで食材を追加してください'
-                : `登録中の${fridgeCount}品からおすすめを提案`}
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={onPlanWeek}
-          disabled={fridgeCount === 0}
-          className="w-full rounded-2xl p-5 flex items-center gap-4 active:scale-[0.99] transition-transform"
-          style={{
-            background: fridgeCount === 0 ? COLORS.border : COLORS.paper,
-            border: `1px solid ${fridgeCount === 0 ? COLORS.border : COLORS.gold}`,
-            color: fridgeCount === 0 ? COLORS.inkSoft : COLORS.ink,
-            cursor: fridgeCount === 0 ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{
-              background: fridgeCount === 0 ? 'rgba(0,0,0,0.05)' : COLORS.cream,
-              color: fridgeCount === 0 ? COLORS.inkSoft : COLORS.gold,
-            }}
-          >
-            <CalendarDays size={22} />
-          </div>
-          <div className="flex-1 text-left">
-            <div className="text-sm font-bold mb-0.5">1週間分の献立を作る</div>
-            <div className="text-xs" style={{ color: COLORS.inkSoft }}>
-              前日の残りを繋いで7日分をまとめて提案
-            </div>
-          </div>
-        </button>
-      </div>
 
       {planSlot}
 
-      {/* Results */}
       {currentRecipes.length === 0 ? (
         <EmptyState
-          icon={<ChefHat size={32} />}
-          title="まだ提案がありません"
-          desc="上のボタンを押してレシピを探してみましょう"
+          icon={<Star size={32} />}
+          title="提案を生成中..."
+          desc="レシピを探しています"
         />
       ) : (
         <>
@@ -172,6 +86,8 @@ export default function RecipesView({
               <span>
                 {currentMeta.source === 'flyer'
                   ? `チラシから ${currentMeta.flyerCount}件`
+                  : currentMeta.source === 'combined'
+                  ? `チラシ ${currentMeta.flyerCount}件 + 冷蔵庫`
                   : '冷蔵庫から'}
               </span>
               <span style={{ opacity: 0.4 }}>·</span>
@@ -181,18 +97,15 @@ export default function RecipesView({
           <div className="space-y-4">
             {currentRecipes.map((r, i) => (
               <RecipeCard
-                key={i}
+                key={`${recipeFavoriteKey(r)}-${i}`}
                 recipe={r}
                 onOpen={() => onOpenRecipe(r)}
                 rank={i + 1}
                 expiringNames={expiringNames}
+                favorite={isFavoriteRecipe(favorites, r)}
+                onToggleFavorite={onToggleFavorite}
               />
             ))}
-            <AdSlot
-              slot={adSlot}
-              label="フィード内広告 (336×280)"
-              minHeight={250}
-            />
           </div>
         </>
       )}
@@ -209,24 +122,36 @@ function useUpMessage(recipe, expiringNames) {
     : `${used[0]}ほか${used.length - 1}品を使い切れます`;
 }
 
-function RecipeCard({ recipe, onOpen, rank, expiringNames = [] }) {
+function RecipeCard({
+  recipe,
+  onOpen,
+  rank,
+  expiringNames = [],
+  favorite = false,
+  onToggleFavorite,
+}) {
   const missingTotal = (recipe.missingIngredients || []).reduce(
     (s, m) => s + (m.estimatedPrice || 0),
     0
   );
   const useUp = useUpMessage(recipe, expiringNames);
   return (
-    <button
-      onClick={onOpen}
-      className="w-full rounded-2xl text-left overflow-hidden active:scale-[0.99] transition-transform"
+    <article
+      className="relative w-full rounded-2xl overflow-hidden"
       style={{
         background: COLORS.paper,
         border: `1px solid ${COLORS.border}`,
       }}
     >
-      <div className="flex items-stretch">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`${recipe.name}の詳細を見る`}
+        className="w-full text-left active:scale-[0.99] transition-transform"
+      >
+        <div className="flex items-stretch">
         <div
-          className="flex-shrink-0 flex items-center justify-center"
+          className="flex-shrink-0 flex items-center justify-center min-h-[164px]"
           style={{
             width: 110,
             background: `linear-gradient(135deg, ${COLORS.blush} 0%, ${COLORS.cream} 100%)`,
@@ -239,7 +164,7 @@ function RecipeCard({ recipe, onOpen, rank, expiringNames = [] }) {
             className="text-[10px] tracking-widest mb-1"
             style={{ color: COLORS.gold }}
           >
-            #{rank} BEST VALUE
+            {rank ? `#${rank} BEST VALUE` : 'FAVORITE RECIPE'}
           </div>
           {useUp && (
             <div
@@ -281,7 +206,29 @@ function RecipeCard({ recipe, onOpen, rank, expiringNames = [] }) {
             )}
           </div>
         </div>
-      </div>
-    </button>
+        </div>
+      </button>
+      <button
+        type="button"
+        aria-label={
+          favorite
+            ? `${recipe.name}のお気に入りを解除`
+            : `${recipe.name}をお気に入りに追加`
+        }
+        aria-pressed={favorite}
+        onClick={() => onToggleFavorite(recipe)}
+        className="absolute left-3 top-3 z-10 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+        style={{
+          width: 44,
+          height: 44,
+          color: favorite ? COLORS.paper : COLORS.gold,
+          background: favorite ? COLORS.gold : 'rgba(255, 253, 247, 0.94)',
+          border: `1px solid ${favorite ? COLORS.gold : COLORS.border}`,
+          boxShadow: '0 2px 8px rgba(34, 26, 20, 0.12)',
+        }}
+      >
+        <Star size={18} fill={favorite ? 'currentColor' : 'none'} />
+      </button>
+    </article>
   );
 }

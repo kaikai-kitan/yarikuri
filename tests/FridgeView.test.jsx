@@ -27,7 +27,7 @@ describe('FridgeView', () => {
     fireEvent.click(screen.getByRole('button', { name: '追加' }));
 
     // Assert
-    expect(onAdd).toHaveBeenCalledWith('玉ねぎ');
+    expect(onAdd).toHaveBeenCalledWith('玉ねぎ', 'ingredient');
   });
 
   test('does not call onAdd when Enter confirms an IME conversion', () => {
@@ -56,7 +56,7 @@ describe('FridgeView', () => {
 
     // Assert
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect(onAdd).toHaveBeenCalledWith('玉ねぎ');
+    expect(onAdd).toHaveBeenCalledWith('玉ねぎ', 'ingredient');
   });
 
   test('adds a suggestion when its chip is clicked', () => {

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import RecipesPageClient from './client';
 
 export const metadata = {
@@ -6,5 +7,15 @@ export const metadata = {
 };
 
 export default function RecipesPage() {
-  return <RecipesPageClient />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center pt-32 text-sm">
+          レシピ画面を読み込んでいます…
+        </div>
+      }
+    >
+      <RecipesPageClient />
+    </Suspense>
+  );
 }

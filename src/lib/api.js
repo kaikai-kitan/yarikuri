@@ -83,3 +83,4 @@ export async function fetchRecipeLink(name) {
     return { configured: true, link: null, reason: 'upstream_error' };
   }
 }
+

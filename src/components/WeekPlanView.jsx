@@ -112,11 +112,20 @@ export default function WeekPlanView({
           </p>
         ) : (
           <>
-            <ul className="space-y-1 mb-2">
+            <ul className="space-y-2 mb-2">
               {plan.shoppingList.map((s, i) => (
-                <li key={`${s.name}-${i}`} className="flex items-baseline justify-between text-xs">
-                  <span style={{ color: COLORS.ink }}>{s.name}</span>
-                  <span style={{ color: COLORS.inkSoft }}>{yen(s.estimatedPrice)}</span>
+                <li key={`${s.name}-${i}`} className="flex flex-col text-xs">
+                  <div className="flex items-baseline justify-between">
+                    <span style={{ color: COLORS.ink }}>
+                      {s.name} {s.amount && <span className="text-[10px] ml-1" style={{color: COLORS.inkSoft}}>({s.amount})</span>}
+                    </span>
+                    <span style={{ color: COLORS.inkSoft }}>{yen(s.estimatedPrice)}</span>
+                  </div>
+                  {s.buyAt && (
+                    <div className="text-[10px] mt-0.5" style={{ color: COLORS.tomatoDeep }}>
+                      📍 {s.buyAt}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

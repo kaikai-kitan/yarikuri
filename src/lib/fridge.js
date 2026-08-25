@@ -16,6 +16,7 @@ export const DEFAULT_SHELF_LIFE_DAYS = {
   perishable: 3,
   vegetable: 7,
   dairy: 7,
+  condiment: 30,
   staple: null,
 };
 

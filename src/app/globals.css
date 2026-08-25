@@ -66,6 +66,54 @@
   animation: fadeUp 0.35s ease-out both;
 }
 
+@keyframes proposalBranchDraw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes proposalChoiceAppear {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.proposal-branch-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: proposalBranchDraw 0.32s ease-out forwards;
+}
+
+.proposal-branch-line-delayed {
+  animation-delay: 0.06s;
+}
+
+.proposal-choice {
+  opacity: 0;
+  animation: proposalChoiceAppear 0.24s 0.16s ease-out forwards;
+}
+
+.proposal-choice-delayed {
+  animation-delay: 0.22s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proposal-branch-line,
+  .proposal-choice {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;

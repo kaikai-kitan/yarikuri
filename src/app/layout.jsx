@@ -18,6 +18,12 @@ export const metadata = {
     siteName: 'ヤリクリ',
   },
   robots: { index: true, follow: true },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'ヤリクリ',
+  },
 };
 
 export default function RootLayout({ children }) {
@@ -31,18 +37,16 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3006458424365247"
-          crossOrigin="anonymous"
-        />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
-      <body style={{ paddingBottom: 88 }}>
-        <AppHeader />
-        <main className="px-5 pt-5">
-          {children}
-        </main>
-        <AppNav />
+      <body className="bg-gray-100 flex justify-center min-h-screen">
+        <div className="w-full max-w-md bg-[#fbf6ec] min-h-screen relative shadow-2xl overflow-x-hidden flex flex-col" style={{ paddingBottom: 88 }}>
+          <AppHeader />
+          <main className="px-5 pt-5 flex-1">
+            {children}
+          </main>
+          <AppNav />
+        </div>
       </body>
     </html>
   );

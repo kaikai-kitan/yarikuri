@@ -3,16 +3,22 @@ import { Loader2 } from 'lucide-react';
 import FridgeView from '@/components/FridgeView';
 import { useFridge } from '@/lib/hooks';
 import { newId } from '@/lib/id';
-import { expiryState } from '@/lib/fridge';
+import { expiryState, defaultExpiryFor } from '@/lib/fridge';
 import { COLORS } from '@/theme';
 
 export default function FridgePageClient() {
   const [fridge, setFridge, ready] = useFridge();
 
-  const addFridgeItem = (name) => {
+  const addFridgeItem = (name, type = 'ingredient') => {
     const trimmed = name.trim();
     if (!trimmed || fridge.some((f) => f.name === trimmed)) return;
-    setFridge([{ id: newId(), name: trimmed, addedAt: Date.now() }, ...fridge]);
+
+    let expiresAt = undefined;
+    if (type === 'condiment') {
+      expiresAt = defaultExpiryFor('condiment');
+    }
+
+    setFridge([{ id: newId(), name: trimmed, type, addedAt: Date.now(), expiresAt }, ...fridge]);
   };
 
   const removeFridgeItem = (id) => setFridge(fridge.filter((f) => f.id !== id));

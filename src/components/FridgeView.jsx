@@ -40,16 +40,18 @@ const EXPIRY_TONE = {
 };
 
 export default function FridgeView({ items, now = new Date(), onAdd, onRemove, onSetExpiry, onRemoveExpired }) {
+  const [tab, setTab] = useState('ingredient');
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null);
   const inputRef = useRef(null);
 
-  const sorted = sortByExpiry(items, now);
-  const hasExpired = items.some((it) => expiryState(it, now) === 'expired');
+  const filteredItems = items.filter((it) => (it.type || 'ingredient') === tab);
+  const sorted = sortByExpiry(filteredItems, now);
+  const hasExpired = filteredItems.some((it) => expiryState(it, now) === 'expired');
 
   const submit = () => {
     if (!text.trim()) return;
-    onAdd(text);
+    onAdd(text, tab);
     setText('');
     inputRef.current?.focus();
   };
@@ -61,6 +63,24 @@ export default function FridgeView({ items, now = new Date(), onAdd, onRemove, o
         title="冷蔵庫の在庫"
         sub="家にある食材・調味料をサクッと登録。"
       />
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {[{ id: 'ingredient', label: '食材' }, { id: 'condiment', label: '調味料' }].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="px-4 py-2 rounded-xl text-sm font-bold flex-1 transition-colors"
+            style={{
+              background: tab === t.id ? COLORS.ink : COLORS.paper,
+              color: tab === t.id ? COLORS.paper : COLORS.inkSoft,
+              border: `1px solid ${tab === t.id ? COLORS.ink : COLORS.border}`
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* Input row */}
       <div
@@ -75,7 +95,7 @@ export default function FridgeView({ items, now = new Date(), onAdd, onRemove, o
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => isSubmitKey(e) && submit()}
-          placeholder="例：玉ねぎ、しょうゆ"
+          placeholder={tab === 'ingredient' ? "例：玉ねぎ、豚肉" : "例：しょうゆ、マヨネーズ"}
           className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
           style={{ color: COLORS.ink, fontFamily: FONT_BODY }}
         />
@@ -111,11 +131,11 @@ export default function FridgeView({ items, now = new Date(), onAdd, onRemove, o
       </div>
 
       {/* List */}
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <EmptyState
           icon={<Refrigerator size={32} />}
-          title="まだ登録がありません"
-          desc="家にある食材や調味料を追加してください"
+          title={tab === 'ingredient' ? "食材がありません" : "調味料がありません"}
+          desc={tab === 'ingredient' ? "家にある食材を追加してください" : "家にある調味料を追加してください"}
         />
       ) : (
         <>

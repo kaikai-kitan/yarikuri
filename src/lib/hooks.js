@@ -4,6 +4,8 @@ import { usePersistentList, usePersistentValue } from './persist';
 import { normalizeLimit } from './budget';
 import { sanitizePlan } from './plan';
 import { getUserId, peekUserId, resetUserId } from './userId';
+import { newId } from './id';
+import { recipeFavoriteKey, sanitizeFavorites } from './favorites';
 
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
 
@@ -63,6 +65,40 @@ export function useHistory(limit = 3) {
   const push = (entry) => setItems([entry, ...items].slice(0, limit));
 
   return [items, push, ready];
+}
+
+// お気に入りは検索履歴（最大3件）と分離し、レシピ全体のスナップショットを保存する。
+// 返り値は [favorites, toggle, ready]。
+export function useFavorites() {
+  const [favorites, setFavorites, ready] = usePersistentList(
+    'recipes:favorites',
+    sanitizeFavorites
+  );
+
+  const toggle = (recipe) => {
+    const targetKey = recipeFavoriteKey(recipe);
+    if (!targetKey) return;
+
+    setFavorites((current) => {
+      const exists = current.some(
+        (favorite) => recipeFavoriteKey(favorite.recipe) === targetKey
+      );
+      return exists
+        ? current.filter(
+            (favorite) => recipeFavoriteKey(favorite.recipe) !== targetKey
+          )
+        : [
+            {
+              id: newId(),
+              savedAt: Date.now(),
+              recipe: { ...recipe },
+            },
+            ...current,
+          ];
+    });
+  };
+
+  return [favorites, toggle, ready];
 }
 
 // 登録不要の匿名利用者ID。マウント時に発行または期限を先送りする。

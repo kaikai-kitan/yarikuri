@@ -43,6 +43,8 @@ export default defineConfig({
         'functions/api/recipe-link.js',
         'src/lib/recipeLink.js',
         'src/components/RecipesView.jsx',
+        'src/components/HomeView.jsx',
+        'src/components/AppNav.jsx',
         'src/components/WeekPlanView.jsx',
         'src/components/FridgeView.jsx',
       ],
