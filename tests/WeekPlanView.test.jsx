@@ -248,8 +248,8 @@ describe('WeekPlanView — linking to a real recipe', () => {
     expect(screen.getByText('レシピが見つかりませんでした')).toBeInTheDocument();
   });
 
-  test('credits the source once a recipe is shown', () => {
-    renderView({ plan: onePlan(), links: { 0: link } });
+  test('credits rakuten once one of its recipes is shown', () => {
+    renderView({ plan: onePlan(), links: { 0: { ...link, source: 'rakuten' } } });
     const credit = screen.getByRole('link', { name: /楽天ウェブサービス/ });
     expect(credit).toHaveAttribute('href', 'https://webservice.rakuten.co.jp/');
   });
@@ -259,8 +259,14 @@ describe('WeekPlanView — linking to a real recipe', () => {
     expect(screen.queryByRole('link', { name: /楽天ウェブサービス/ })).not.toBeInTheDocument();
   });
 
-  test('hides the lookup entirely when the integration is off', () => {
-    renderView({ plan: onePlan(), linkingAvailable: false });
-    expect(screen.queryByRole('button', { name: '肉じゃが のレシピを見る' })).not.toBeInTheDocument();
+  test('does not credit rakuten for a plain web search link', () => {
+    // 楽天のデータを出していないのにクレジットを載せるのは誤り
+    renderView({
+      plan: onePlan(),
+      links: { 0: { ...link, title: '「肉じゃが」のレシピを検索', source: 'search' } },
+    });
+
+    expect(screen.queryByRole('link', { name: /楽天ウェブサービス/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /のレシピを検索/ })).toBeInTheDocument();
   });
 });

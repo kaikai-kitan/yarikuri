@@ -41,7 +41,6 @@ export default function RecipesPageClient() {
   const [currentMeta, setCurrentMeta] = useState(null);
   const [searching, setSearching] = useState(null);
   const [recipeLinks, setRecipeLinks] = useState({});
-  const [linkingAvailable, setLinkingAvailable] = useState(true);
   const [recipeOpen, setRecipeOpen] = useState(null);
   const [toast, setToast] = useState(null);
   // auto パラメータによる提案結果を表示するモード
@@ -163,20 +162,13 @@ export default function RecipesPageClient() {
     if (!target) return;
 
     setRecipeLinks((prev) => ({ ...prev, [index]: 'loading' }));
-    const { configured, link, reason } = await fetchRecipeLink(target.name);
+    const { link, reason } = await fetchRecipeLink(target.name);
 
-    if (!configured) {
-      // 連携が設定されていなければ、以後この導線ごと出さない
-      setLinkingAvailable(false);
-      setRecipeLinks((prev) => {
-        const { [index]: _dropped, ...rest } = prev;
-        return rest;
-      });
-      return;
+    // 楽天で引けなくてもWeb検索リンクが返る。1本も出せなかったときだけ知らせる。
+    if (!link) {
+      const message = recipeLinkErrorMessage(reason);
+      if (message) showToast(message, 'error');
     }
-    // 見つからなかっただけなら黙る。認証切れなどは知らせないと原因が分からない。
-    const message = recipeLinkErrorMessage(reason);
-    if (message) showToast(message, 'error');
 
     setRecipeLinks((prev) => ({ ...prev, [index]: link }));
   };
@@ -285,7 +277,6 @@ export default function RecipesPageClient() {
             }}
             onToggleCooked={toggleCookedDay}
             links={recipeLinks}
-            linkingAvailable={linkingAvailable}
             onFetchLink={fetchLinkFor}
           />
         ) : null

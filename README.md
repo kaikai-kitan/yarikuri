@@ -113,9 +113,10 @@ const AD_SLOTS = {
 npm install
 npm install -g wrangler        # Cloudflare CLI
 cat > .dev.vars <<'ENV'                          # Cloudflare 用の環境変数ファイル (git管理外)
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...                     # ← 実際のキーに置き換えること
 RAKUTEN_APPLICATION_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 RAKUTEN_ACCESS_KEY=pk_...
+MOCK_AI=1                                        # APIキー無しで動かす場合
 ENV
 npm run build                                    # out/ を生成
 wrangler pages dev out --compatibility-date=2024-01-01
@@ -176,6 +177,24 @@ Sonnet 4.5 ($3/$15) より3倍安い Haiku 4.5 ($1/$5) を採用。構造化さ�
 - `/recipes` → レシピ
 
 `public/_redirects` の `/* /index.html 200` により、Cloudflare Pages が全ルートを index.html にフォールバックします。
+
+### モックモード
+
+`MOCK_AI=1` を設定すると、AI 系のエンドポイント (`suggest-recipes` / `plan-week` /
+`ocr-receipt` / `ocr-flyer`) が Anthropic を呼ばずに定型データを返す。APIキーが
+無くても画面の確認と開発ができる。応答には `mock: true` が入る。
+
+定型データは `functions/api/_mock.js` にあり、実データと同じ正規化関数
+(`normalizeReceipt` / `normalizePlan`) を通してから返すため、形が本番とずれない。
+
+`'1'` と完全一致したときだけ有効。本番環境では設定しないこと。
+
+### レシピリンクのフォールバック
+
+楽天レシピで実在ページを引けなかったとき (未設定・認証失敗・レート制限・
+カテゴリ不一致など) は、料理名のWeb検索リンクを返す。`link.source` が
+`'rakuten'` か `'search'` かで区別でき、楽天のクレジット表記は
+`'rakuten'` を実際に表示したときだけ出す。
 
 ### 楽天レシピ連携
 

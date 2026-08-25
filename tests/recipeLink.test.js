@@ -60,15 +60,18 @@ describe('credentials', () => {
     // Act
     const { body } = await call({ name: '肉じゃが' }, { RAKUTEN_ACCESS_KEY: ACCESS_KEY });
 
-    // Assert
-    expect(body).toEqual({ configured: false, link: null, reason: 'not_configured' });
+    // Assert — 行き止まりにせず、Web検索へ逃がす
+    expect(body.reason).toBe('not_configured');
+    expect(body.link.source).toBe('search');
+    expect(body.link.url).toContain('google');
   });
 
   test('says why it is inactive when the access key is missing', async () => {
     // 新ゲートウェイは accessKey なしでは 400 を返すため、叩く前に止める
     warmCategories();
     const { body } = await call({ name: '肉じゃが' }, { RAKUTEN_APPLICATION_ID: APP_ID });
-    expect(body).toEqual({ configured: false, link: null, reason: 'not_configured' });
+    expect(body.reason).toBe('not_configured');
+    expect(body.link.source).toBe('search');
   });
 });
 
@@ -88,7 +91,8 @@ describe('successful lookup', () => {
     expect(url).not.toContain('accessKey');
     expect(init.headers).toMatchObject({ accessKey: ACCESS_KEY });
     expect(body.link.title).toBe('基本の肉じゃが');
-    expect(body).toMatchObject({ configured: true, reason: null });
+    expect(body.link.source).toBe('rakuten');
+    expect(body.reason).toBeNull();
   });
 
   test('fetches the category list first when the cache is cold', async () => {
@@ -124,7 +128,8 @@ describe('failures are reported, not swallowed', () => {
     const { body } = await call({ name: '肉じゃが' });
 
     // Assert
-    expect(body).toEqual({ configured: true, link: null, reason: 'auth_failed' });
+    expect(body.reason).toBe('auth_failed');
+    expect(body.link.source).toBe('search');
     expect(console.error).toHaveBeenCalled();
   });
 
@@ -143,7 +148,8 @@ describe('failures are reported, not swallowed', () => {
     const { body } = await call({ name: '肉じゃが' });
 
     // Assert
-    expect(body).toEqual({ configured: true, link: null, reason: 'auth_failed' });
+    expect(body.reason).toBe('auth_failed');
+    expect(body.link.source).toBe('search');
     expect(console.error).toHaveBeenCalled();
   });
 
@@ -159,7 +165,8 @@ describe('failures are reported, not swallowed', () => {
     warmCategories();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
     const { body } = await call({ name: '肉じゃが' });
-    expect(body).toEqual({ configured: true, link: null, reason: 'upstream_error' });
+    expect(body.reason).toBe('upstream_error');
+    expect(body.link.source).toBe('search');
   });
 });
 
@@ -171,7 +178,9 @@ describe('no match', () => {
 
     const { body } = await call({ name: '宇宙料理' });
 
-    expect(body).toEqual({ configured: true, link: null, reason: 'no_match' });
+    expect(body.reason).toBe('no_match');
+    expect(body.link.source).toBe('search');
+    expect(body.link.url).toContain(encodeURIComponent('宇宙料理'));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

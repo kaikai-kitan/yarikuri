@@ -40,6 +40,8 @@ export default defineConfig({
         'functions/api/_prompt.js',
         'functions/api/_rakuten.js',
         'functions/api/_rakutenClient.js',
+        'functions/api/_recipeSearch.js',
+        'functions/api/_mock.js',
         'functions/api/recipe-link.js',
         'src/lib/recipeLink.js',
         'src/components/RecipesView.jsx',

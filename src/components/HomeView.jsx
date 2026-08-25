@@ -15,7 +15,6 @@ export default function HomeView({
   onClearPlan,
   onToggleCooked,
   recipeLinks,
-  linkingAvailable,
   onFetchLink,
   adSlot,
 }) {
@@ -33,7 +32,6 @@ export default function HomeView({
             onClearPlan={onClearPlan}
             onToggleCooked={onToggleCooked}
             links={recipeLinks}
-            linkingAvailable={linkingAvailable}
             onFetchLink={onFetchLink}
           />
           <div className="h-6" />

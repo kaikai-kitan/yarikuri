@@ -7,6 +7,7 @@ import {
   authHeaders,
   failureReason,
 } from './_rakutenClient.js';
+import { webSearchLink } from './_recipeSearch.js';
 
 // 楽天ウェブサービスは 1リクエスト/秒。カテゴリ一覧とランキングを続けて
 // 呼ぶ場合はこの間隔をあける。
@@ -70,12 +71,12 @@ export async function onRequestPost(context) {
   // 片方でも欠けていれば叩かずに、理由を添えて機能を止める。
   const appId = env.RAKUTEN_APPLICATION_ID;
   const accessKey = env.RAKUTEN_ACCESS_KEY;
-  if (!appId || !accessKey) {
+  const configured = Boolean(appId && accessKey);
+  if (!configured) {
     console.error('Rakuten credentials missing:', {
       hasApplicationId: Boolean(appId),
       hasAccessKey: Boolean(accessKey),
     });
-    return json({ configured: false, link: null, reason: 'not_configured' });
   }
 
   let body;
@@ -90,12 +91,18 @@ export async function onRequestPost(context) {
     return json({ error: '料理名がありません' }, 400);
   }
 
+  // 楽天が使えないときは、料理名のWeb検索へ逃がす。
+  // リンクが1本も出ないより、精度が落ちてもたどり着けるほうがよい。
+  const fallback = (reason) => json({ link: webSearchLink(name), reason });
+
+  if (!configured) return fallback('not_configured');
+
   try {
     const { list, fromCache } = await loadCategories(appId, accessKey);
 
     const category = matchCategory(name, list);
     if (!category) {
-      return json({ configured: true, link: null, reason: 'no_match' });
+      return fallback('no_match');
     }
 
     // 続けて叩く場合だけ間隔をあける
@@ -108,12 +115,14 @@ export async function onRequestPost(context) {
     );
 
     const link = normalizeRecipeLink(data);
-    return json({ configured: true, link, reason: link ? null : 'no_recipe' });
+    if (!link) return fallback('no_recipe');
+
+    return json({ link: { ...link, source: 'rakuten' }, reason: null });
   } catch (e) {
     // RakutenError は fetchRakuten で本文ごとログ済み。それ以外はここで出す。
     if (!(e instanceof RakutenError)) {
       console.error('Recipe link handler error:', e);
     }
-    return json({ configured: true, link: null, reason: e?.reason ?? 'upstream_error' });
+    return fallback(e?.reason ?? 'upstream_error');
   }
 }

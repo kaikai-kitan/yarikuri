@@ -1,6 +1,7 @@
 import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
 import { fridgeText, flyerText, urgentBlock, budgetBlock } from './_prompt.js';
+import { isMockEnabled, mockRecipes } from './_mock.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -10,8 +11,9 @@ export async function onRequestPost(context) {
     return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) });
   }
 
+  // モックモードではAIを呼ばないので、APIキーは要求しない。
   const apiKey = env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!apiKey && !isMockEnabled(env)) {
     return json({ error: 'サーバー設定エラー (APIキー未設定)' }, 500);
   }
 
@@ -25,6 +27,10 @@ export async function onRequestPost(context) {
   const { fridge = [], flyerItems = [], budget = null } = body || {};
   if (!Array.isArray(fridge) || !Array.isArray(flyerItems)) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
+  }
+
+  if (isMockEnabled(env)) {
+    return json({ recipes: mockRecipes(fridge, flyerItems), mock: true });
   }
 
 

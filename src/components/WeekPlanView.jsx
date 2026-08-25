@@ -24,7 +24,6 @@ export default function WeekPlanView({
   plan,
   now = new Date(),
   links = {},
-  linkingAvailable = true,
   onClearPlan,
   onToggleCooked,
   onFetchLink,
@@ -35,7 +34,10 @@ export default function WeekPlanView({
   const lastIndex = plan.days.length - 1;
   const shoppingTotal = plan.shoppingList.reduce((sum, s) => sum + (s.estimatedPrice || 0), 0);
   const cooked = cookedCount(plan);
-  const showsAnyLink = Object.values(links).some((l) => l && typeof l === 'object');
+  // クレジット表記は楽天のデータを実際に出したときだけ必要。
+  const showsRakutenLink = Object.values(links).some(
+    (l) => l && typeof l === 'object' && l.source === 'rakuten'
+  );
 
   return (
     <div className="mb-6">
@@ -213,7 +215,7 @@ export default function WeekPlanView({
                   1人前 {yen(d.totalCost)}・{d.cookingTime}
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
-                {linkingAvailable && links[i] === undefined && (
+                {links[i] === undefined && (
                   <button
                     onClick={() => onFetchLink(i)}
                     aria-label={`${d.name} のレシピを見る`}
@@ -289,7 +291,7 @@ export default function WeekPlanView({
         })}
       </ul>
 
-      {showsAnyLink && (
+      {showsRakutenLink && (
         <p className="text-[10px] mt-3 text-center" style={{ color: COLORS.inkSoft }}>
           レシピ情報{' '}
           <a

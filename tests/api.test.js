@@ -136,7 +136,7 @@ describe('fetchRecipeLink', () => {
 
   test('posts the dish name and returns the link', async () => {
     // Arrange
-    const fn = mockFetch({ configured: true, link });
+    const fn = mockFetch({ link, reason: null });
 
     // Act
     const result = await fetchRecipeLink('肉じゃが');
@@ -144,34 +144,25 @@ describe('fetchRecipeLink', () => {
     // Assert
     expect(fn).toHaveBeenCalledWith('/api/recipe-link', expect.objectContaining({ method: 'POST' }));
     expect(bodyOf(fn)).toEqual({ name: '肉じゃが' });
-    expect(result).toEqual({ configured: true, link, reason: null });
+    expect(result).toEqual({ link, reason: null });
   });
 
   test('reports that no recipe was found', async () => {
-    mockFetch({ configured: true, link: null, reason: 'no_match' });
-    expect(await fetchRecipeLink('宇宙料理')).toEqual({
-      configured: true,
-      link: null,
-      reason: 'no_match',
-    });
+    // 楽天で引けなくてもサーバーがWeb検索リンクを返す
+    const search = { title: '「宇宙料理」のレシピを検索', url: 'https://www.google.com/search?q=x', source: 'search' };
+    mockFetch({ link: search, reason: 'no_match' });
+    expect(await fetchRecipeLink('宇宙料理')).toEqual({ link: search, reason: 'no_match' });
   });
 
-  test('reports that the integration is not configured', async () => {
-    mockFetch({ configured: false, link: null, reason: 'not_configured' });
-    expect(await fetchRecipeLink('肉じゃが')).toEqual({
-      configured: false,
-      link: null,
-      reason: 'not_configured',
-    });
+  test('passes on why the rakuten lookup did not work', async () => {
+    const search = { title: '「肉じゃが」のレシピを検索', url: 'https://www.google.com/search?q=x', source: 'search' };
+    mockFetch({ link: search, reason: 'not_configured' });
+    expect(await fetchRecipeLink('肉じゃが')).toEqual({ link: search, reason: 'not_configured' });
   });
 
   test('reports no link rather than throwing when the server fails', async () => {
     // リンクが出ないだけで献立は使えるため、失敗を握って null を返す
     mockFetch({ error: 'なにか失敗' }, false, 500);
-    expect(await fetchRecipeLink('肉じゃが')).toEqual({
-      configured: true,
-      link: null,
-      reason: 'upstream_error',
-    });
+    expect(await fetchRecipeLink('肉じゃが')).toEqual({ link: null, reason: 'upstream_error' });
   });
 });

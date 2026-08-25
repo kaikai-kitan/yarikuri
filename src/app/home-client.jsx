@@ -15,7 +15,6 @@ export default function HomePageClient() {
   const [history, , historyReady] = useHistory();
   const [weekPlan, setWeekPlan, planReady] = useWeekPlan();
   const [recipeLinks, setRecipeLinks] = useState({});
-  const [linkingAvailable, setLinkingAvailable] = useState(true);
   const [toast, setToast] = useState(null);
 
   const ready = fridgeReady && historyReady && planReady;
@@ -40,14 +39,12 @@ export default function HomePageClient() {
     const target = weekPlan?.days?.[index];
     if (!target) return;
     setRecipeLinks((prev) => ({ ...prev, [index]: 'loading' }));
-    const { configured, link, reason } = await fetchRecipeLink(target.name);
-    if (!configured) {
-      setLinkingAvailable(false);
-      setRecipeLinks((prev) => { const { [index]: _dropped, ...rest } = prev; return rest; });
-      return;
+    const { link, reason } = await fetchRecipeLink(target.name);
+    // 楽天で引けなくてもWeb検索リンクが返る。1本も出せなかったときだけ知らせる。
+    if (!link) {
+      const message = recipeLinkErrorMessage(reason);
+      if (message) showToast(message, 'error');
     }
-    const message = recipeLinkErrorMessage(reason);
-    if (message) showToast(message, 'error');
     setRecipeLinks((prev) => ({ ...prev, [index]: link }));
   };
 
@@ -84,7 +81,6 @@ export default function HomePageClient() {
         onClearPlan={() => { setWeekPlan(null); setRecipeLinks({}); }}
         onToggleCooked={toggleCookedDay}
         recipeLinks={recipeLinks}
-        linkingAvailable={linkingAvailable}
         onFetchLink={fetchLinkFor}
         adSlot=""
       />

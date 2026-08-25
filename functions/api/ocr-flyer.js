@@ -1,5 +1,6 @@
 import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
+import { isMockEnabled, mockFlyerItems } from './_mock.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -9,8 +10,9 @@ export async function onRequestPost(context) {
     return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) });
   }
 
+  // モックモードではAIを呼ばないので、APIキーは要求しない。
   const apiKey = env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!apiKey && !isMockEnabled(env)) {
     return json({ error: 'サーバー設定エラー (APIキー未設定)' }, 500);
   }
 
@@ -24,6 +26,10 @@ export async function onRequestPost(context) {
   const { imageBase64, mediaType } = body || {};
   if (!imageBase64 || typeof imageBase64 !== 'string') {
     return json({ error: '画像データがありません' }, 400);
+  }
+
+  if (isMockEnabled(env)) {
+    return json({ items: mockFlyerItems(), mock: true });
   }
 
   try {

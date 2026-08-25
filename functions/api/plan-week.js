@@ -2,6 +2,7 @@ import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonObject } from './_ai.js';
 import { fridgeText, flyerText, urgentBlock, budgetBlock } from './_prompt.js';
 import { normalizePlan } from './_plan.js';
+import { isMockEnabled, mockPlan } from './_mock.js';
 
 const PLAN_DAYS = 7;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -16,8 +17,9 @@ export async function onRequestPost(context) {
     return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) });
   }
 
+  // モックモードではAIを呼ばないので、APIキーは要求しない。
   const apiKey = env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!apiKey && !isMockEnabled(env)) {
     return json({ error: 'サーバー設定エラー (APIキー未設定)' }, 500);
   }
 
@@ -34,6 +36,10 @@ export async function onRequestPost(context) {
   }
 
   const start = DATE_PATTERN.test(startDate) ? startDate : todayIso();
+
+  if (isMockEnabled(env)) {
+    return json({ plan: normalizePlan(mockPlan(fridge), start), mock: true });
+  }
 
   try {
     const upstream = await callAnthropic(apiKey, {
