@@ -39,10 +39,14 @@ export default function RootLayout({ children }) {
         />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
-      <body className="bg-gray-100 flex justify-center min-h-screen">
-        <div className="w-full max-w-md bg-[#fbf6ec] min-h-screen relative shadow-2xl overflow-x-hidden flex flex-col" style={{ paddingBottom: 88 }}>
+      <body className="bg-gray-100 flex justify-center h-full overflow-hidden">
+        {/* 画面の高さに固定した殻。ヘッダーとボトムバーは動かず、main だけがスクロールする。 */}
+        <div
+          className="w-full max-w-md bg-[#fbf6ec] relative shadow-2xl overflow-hidden flex flex-col"
+          style={{ height: '100dvh' }}
+        >
           <AppHeader />
-          <main className="px-5 pt-5 flex-1">
+          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-8">
             {children}
           </main>
           <AppNav />

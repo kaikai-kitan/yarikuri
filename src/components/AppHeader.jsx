@@ -8,7 +8,7 @@ export default function AppHeader() {
 
   return (
     <header
-      className="sticky top-0 z-30 px-5 pt-4 pb-3"
+      className="shrink-0 z-30 px-5 pt-4 pb-3"
       style={{
         background: COLORS.cream,
         borderBottom: `1px solid ${COLORS.border}`,
