@@ -75,3 +75,39 @@ export function budgetBlock(budget) {
 1食分の材料費（totalCost）がこの1日あたりの目安に収まるレシピを優先してください。
 不足食材を買い足す場合も、その概算費用の合計が目安を超えないようにしてください。`;
 }
+
+// 何人分で作るか。分量は人数分、金額とカロリーは1人前で書かせる。
+// ここを混ぜるとカードの「1人前 ¥320」がずれるため、明示して固定する。
+export function servingsBlock(servings) {
+  if (typeof servings !== 'number' || !Number.isFinite(servings) || servings < 1) return '';
+
+  const count = Math.round(servings);
+  return `
+
+【作る人数】
+・${count}人分
+
+材料の分量は${count}人分で書いてください。
+ただし totalCost と calories は1人前あたりの数値にしてください。`;
+}
+
+// 提案の軸。安さ以外も選べるようにするための指示。
+const PRIORITY_INSTRUCTIONS = {
+  cost: `1食あたりの材料費が安い順に並べてください。
+不足食材の買い足しが少ないものほど上位にしてください。`,
+  calorie: `1人前のカロリーが低い順に並べてください。
+1人前600kcal以下を目安にし、calories には推定kcalを必ず数値で入れてください。
+揚げ物や砂糖・油を多く使うレシピは避けてください。`,
+  time: `調理時間が短い順に並べてください。
+20分以内で作れるものを優先し、工程数の少ないレシピにしてください。`,
+};
+
+export function priorityBlock(priority) {
+  const instruction = PRIORITY_INSTRUCTIONS[priority];
+  if (!instruction) return '';
+
+  return `
+
+【優先すること】
+${instruction}`;
+}

@@ -32,11 +32,18 @@ export async function ocrReceipt(imageBase64, mediaType) {
 }
 
 // budget を渡すと、予算内に収まる提案をAIに指示する。
-export async function suggestRecipes(fridge, flyerItems, budget = null) {
+// preferences（人数・優先する条件）は提案の軸と分量に効く。
+export async function suggestRecipes(fridge, flyerItems, budget = null, preferences = null) {
   const res = await fetch('/api/suggest-recipes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fridge, flyerItems, budget: budget ?? null }),
+    body: JSON.stringify({
+      fridge,
+      flyerItems,
+      budget: budget ?? null,
+      servings: preferences?.servings,
+      priority: preferences?.priority,
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -46,11 +53,24 @@ export async function suggestRecipes(fridge, flyerItems, budget = null) {
 }
 
 // 一週間分の献立を1リクエストで取得する。
-export async function planWeek({ fridge, flyerItems = [], budget = null, startDate }) {
+export async function planWeek({
+  fridge,
+  flyerItems = [],
+  budget = null,
+  startDate,
+  preferences = null,
+}) {
   const res = await fetch('/api/plan-week', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fridge, flyerItems, budget: budget ?? null, startDate }),
+    body: JSON.stringify({
+      fridge,
+      flyerItems,
+      budget: budget ?? null,
+      startDate,
+      servings: preferences?.servings,
+      priority: preferences?.priority,
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

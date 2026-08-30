@@ -1,8 +1,17 @@
 'use client';
-import { Star, Wallet } from 'lucide-react';
+import { Star, Wallet, Flame } from 'lucide-react';
 import { COLORS } from '../theme';
 import { isFavoriteRecipe, recipeFavoriteKey } from '../lib/favorites';
 import { SectionHeader, EmptyState } from './ui';
+import ProposalSettings from './ProposalSettings';
+import { PRIORITY_LABELS } from '../lib/preferences';
+
+// 並び順の根拠を見出しにも出す。軸を変えたのに「BEST VALUE」のままだと嘘になる。
+const RANK_LABELS = {
+  cost: 'BEST VALUE',
+  calorie: 'LOW CALORIE',
+  time: 'QUICKEST',
+};
 
 /**
  * レシピタブ — お気に入り一覧のみを表示するシンプルなビュー。
@@ -12,9 +21,15 @@ export default function RecipesView({
   favorites = [],
   onToggleFavorite = () => {},
   onOpenRecipe,
+  preferences = null,
+  onChangePreferences = () => {},
 }) {
   return (
     <div className="fade-up">
+      {preferences && (
+        <ProposalSettings preferences={preferences} onChange={onChangePreferences} />
+      )}
+
       <SectionHeader
         eyebrow="FAVORITES"
         title="お気に入りレシピ"
@@ -59,6 +74,7 @@ export function RecipeResultsView({
   onToggleFavorite = () => {},
   expiringNames = [],
   planSlot = null,
+  preferences = null,
 }) {
   return (
     <div className="fade-up">
@@ -92,6 +108,14 @@ export function RecipeResultsView({
               </span>
               <span style={{ opacity: 0.4 }}>·</span>
               <span>冷蔵庫 {currentMeta.fridgeCount}品</span>
+              {preferences && (
+                <>
+                  <span style={{ opacity: 0.4 }}>·</span>
+                  <span>
+                    {preferences.servings}人分／{PRIORITY_LABELS[preferences.priority]}重視
+                  </span>
+                </>
+              )}
             </div>
           )}
           <div className="space-y-4">
@@ -104,6 +128,7 @@ export function RecipeResultsView({
                 expiringNames={expiringNames}
                 favorite={isFavoriteRecipe(favorites, r)}
                 onToggleFavorite={onToggleFavorite}
+                rankLabel={RANK_LABELS[preferences?.priority] ?? RANK_LABELS.cost}
               />
             ))}
           </div>
@@ -126,6 +151,7 @@ function RecipeCard({
   recipe,
   onOpen,
   rank,
+  rankLabel = 'BEST VALUE',
   expiringNames = [],
   favorite = false,
   onToggleFavorite,
@@ -164,7 +190,7 @@ function RecipeCard({
             className="text-[10px] tracking-widest mb-1"
             style={{ color: COLORS.gold }}
           >
-            {rank ? `#${rank} BEST VALUE` : 'FAVORITE RECIPE'}
+            {rank ? `#${rank} ${rankLabel}` : 'FAVORITE RECIPE'}
           </div>
           {useUp && (
             <div
@@ -199,6 +225,21 @@ function RecipeCard({
                 {(recipe.totalCost || 0).toLocaleString()}
               </div>
             </div>
+            {recipe.calories != null && (
+              <div>
+                <div className="text-[10px]" style={{ color: COLORS.inkSoft }}>
+                  カロリー
+                </div>
+                <div
+                  className="display font-bold flex items-center gap-1"
+                  style={{ color: COLORS.matcha, fontSize: 18 }}
+                >
+                  <Flame size={14} />
+                  {recipe.calories}
+                  <span className="text-[11px] font-normal">kcal</span>
+                </div>
+              </div>
+            )}
             {missingTotal > 0 && (
               <div className="text-[10px]" style={{ color: COLORS.inkSoft }}>
                 追加購入 ¥{missingTotal.toLocaleString()}

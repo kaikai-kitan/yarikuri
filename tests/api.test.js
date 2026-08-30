@@ -166,3 +166,36 @@ describe('fetchRecipeLink', () => {
     expect(await fetchRecipeLink('肉じゃが')).toEqual({ link: null, reason: 'upstream_error' });
   });
 });
+
+describe('提案の設定がサーバーまで届く', () => {
+  const preferences = { servings: 4, priority: 'calorie' };
+
+  test('suggestRecipes sends the servings and the axis', async () => {
+    // Arrange
+    const fn = mockFetch({ recipes: [] });
+
+    // Act
+    await suggestRecipes(['豚こま'], [], null, preferences);
+
+    // Assert
+    expect(bodyOf(fn)).toMatchObject({ servings: 4, priority: 'calorie' });
+  });
+
+  test('planWeek sends the servings and the axis', async () => {
+    const fn = mockFetch({ plan: { days: [], shoppingList: [], startDate: '2026-08-30' } });
+
+    await planWeek({ fridge: ['豚こま'], startDate: '2026-08-30', preferences });
+
+    expect(bodyOf(fn)).toMatchObject({ servings: 4, priority: 'calorie' });
+  });
+
+  test('omits them when no settings were given', async () => {
+    // 未設定のときはサーバー側の既定に任せる
+    const fn = mockFetch({ recipes: [] });
+
+    await suggestRecipes(['豚こま'], []);
+
+    expect(bodyOf(fn).servings).toBeUndefined();
+    expect(bodyOf(fn).priority).toBeUndefined();
+  });
+});

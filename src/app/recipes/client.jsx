@@ -13,6 +13,7 @@ import {
   useFridge,
   useHistory,
   useMonthlyLimit,
+  usePreferences,
   useWeekPlan,
 } from '@/lib/hooks';
 import { toggleCooked } from '@/lib/plan';
@@ -36,6 +37,7 @@ export default function RecipesPageClient() {
   const [expenses, , expensesReady] = useExpenses();
   const [weekPlan, setWeekPlan, planReady] = useWeekPlan();
   const [favorites, toggleFavorite, favoritesReady] = useFavorites();
+  const [preferences, setPreferences, preferencesReady] = usePreferences();
 
   const [currentRecipes, setCurrentRecipes] = useState([]);
   const [currentMeta, setCurrentMeta] = useState(null);
@@ -52,7 +54,8 @@ export default function RecipesPageClient() {
     limitReady &&
     expensesReady &&
     planReady &&
-    favoritesReady;
+    favoritesReady &&
+    preferencesReady;
 
   useEffect(() => {
     try {
@@ -87,7 +90,7 @@ export default function RecipesPageClient() {
         const flyerItems = await ocrFlyer(base64, mediaType);
         if (!flyerItems.length) { showToast('特売品を検出できませんでした', 'error'); setSearching(null); return; }
         const fridgeNames = fridgeForSuggestion(fridge);
-        const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses));
+        const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses), preferences);
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'flyer', fridgeUsed: fridgeNames, flyerItems, recipes };
         pushHistory(entry);
@@ -98,7 +101,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '検索に失敗しました', 'error');
       } finally { setSearching(null); }
     })();
-  }, [fridge, pushHistory, monthlyLimit, expenses]);
+  }, [fridge, pushHistory, monthlyLimit, expenses, preferences]);
 
   // 冷蔵庫＋近隣チラシを両方読み込んでレシピ提案（1回分）
   const searchCombined = useCallback(() => {
@@ -113,7 +116,7 @@ export default function RecipesPageClient() {
         // 近隣チラシを取得（位置情報が使えない場合はチラシなしで提案）
         let flyerItems = [];
 
-        const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses));
+        const recipes = await suggestRecipes(fridgeNames, flyerItems, budgetContext(monthlyLimit, expenses), preferences);
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
 
         const source = flyerItems.length > 0 ? 'combined' : 'fridge';
@@ -128,7 +131,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '検索に失敗しました', 'error');
       } finally { setSearching(null); }
     })();
-  }, [fridge, pushHistory, monthlyLimit, expenses]);
+  }, [fridge, pushHistory, monthlyLimit, expenses, preferences]);
 
   // 一週間分の献立（チラシも読み込む）
   const createWeekPlan = useCallback(() => {
@@ -146,6 +149,7 @@ export default function RecipesPageClient() {
           flyerItems,
           budget: budgetContext(monthlyLimit, expenses),
           startDate: todayIso(),
+          preferences,
         });
         setWeekPlan({ ...plan, createdAt: Date.now() });
         setRecipeLinks({});
@@ -154,7 +158,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '献立の作成に失敗しました', 'error');
       } finally { setSearching(null); }
     })();
-  }, [fridge, monthlyLimit, expenses, setWeekPlan]);
+  }, [fridge, monthlyLimit, expenses, setWeekPlan, preferences]);
 
   // 献立1日分のレシピを引く。1リクエスト/秒の制限があるため、タップされた分だけ取りに行く。
   const fetchLinkFor = async (index) => {
@@ -202,7 +206,7 @@ export default function RecipesPageClient() {
       setShowResults(true);
       try {
         const fridgeNames = fridgeForSuggestion(fridge);
-        const recipes = await suggestRecipes(fridgeNames, [], budgetContext(monthlyLimit, expenses));
+        const recipes = await suggestRecipes(fridgeNames, [], budgetContext(monthlyLimit, expenses), preferences);
         if (!recipes.length) { showToast('作れるレシピが見つかりませんでした', 'error'); setSearching(null); return; }
         const entry = { id: newId(), searchedAt: Date.now(), source: 'fridge', fridgeUsed: fridgeNames, flyerItems: null, recipes };
         pushHistory(entry);
@@ -213,7 +217,7 @@ export default function RecipesPageClient() {
         showToast(e.message || '検索に失敗しました', 'error');
       } finally { setSearching(null); }
     })();
-  }, [fridge, pushHistory, monthlyLimit, expenses]);
+  }, [fridge, pushHistory, monthlyLimit, expenses, preferences]);
 
   useEffect(() => {
     if (!ready) return;
@@ -267,6 +271,7 @@ export default function RecipesPageClient() {
       favorites={favorites}
       onToggleFavorite={handleToggleFavorite}
       expiringNames={expiringSoonNames(fridge)}
+      preferences={preferences}
       planSlot={
         weekPlan ? (
           <WeekPlanView
@@ -287,6 +292,8 @@ export default function RecipesPageClient() {
       favorites={favorites}
       onToggleFavorite={handleToggleFavorite}
       onOpenRecipe={setRecipeOpen}
+      preferences={preferences}
+      onChangePreferences={setPreferences}
     />
   );
 
@@ -294,7 +301,11 @@ export default function RecipesPageClient() {
     <>
       {content}
       {searching && <SearchingScreen source={searching} />}
-      {recipeOpen && <RecipeDetail recipe={recipeOpen} onClose={() => setRecipeOpen(null)} />}
+      {recipeOpen && <RecipeDetail
+          recipe={recipeOpen}
+          servings={preferences.servings}
+          onClose={() => setRecipeOpen(null)}
+        />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>
   );

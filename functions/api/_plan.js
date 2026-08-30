@@ -17,6 +17,13 @@ const yenValue = (value) => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
 };
 
+// 「分からない」と 0kcal は別物なので、読めなければ null にする。
+const kcalValue = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+};
+
 const nameList = (value) =>
   asList(value).filter(isFilledString).slice(0, MAX_LIST).map((n) => n.slice(0, MAX_NAME).trim());
 
@@ -44,6 +51,8 @@ export function normalizePlan(parsed, startDate) {
       // その日だけ買い足す少量のもの
       addOns: priced(d.addOns),
       totalCost: yenValue(d.totalCost),
+      // 1人前のカロリー。読めなければ null。
+      calories: kcalValue(d.calories),
       cookingTime: text(d.cookingTime, 20),
     }));
 

@@ -2,7 +2,7 @@
 import { Wallet, ExternalLink, Image as ImageIcon, Search } from 'lucide-react';
 import { COLORS } from '../theme';
 
-export default function RecipeDetail({ recipe, onClose }) {
+export default function RecipeDetail({ recipe, onClose, servings = 1 }) {
   const cookpadUrl = `https://cookpad.com/jp/search/${encodeURIComponent(
     recipe.name
   )}`;
@@ -76,7 +76,19 @@ export default function RecipeDetail({ recipe, onClose }) {
                   style={{ fontSize: 24, color: COLORS.paper }}
                 >
                   ¥{(recipe.totalCost || 0).toLocaleString()}
+                  {recipe.calories != null && (
+                    <span className="text-sm font-normal ml-2 opacity-80">
+                      {recipe.calories}kcal
+                    </span>
+                  )}
                 </div>
+                {servings > 1 && (
+                  <div className="text-[11px] mt-0.5 opacity-70">
+                    {servings}人分で ¥
+                    {((recipe.totalCost || 0) * servings).toLocaleString()}
+                    {recipe.calories != null && ` ・ 計${recipe.calories * servings}kcal`}
+                  </div>
+                )}
               </div>
             </div>
 

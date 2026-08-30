@@ -1,6 +1,13 @@
 import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonObject } from './_ai.js';
-import { fridgeText, flyerText, urgentBlock, budgetBlock } from './_prompt.js';
+import {
+  fridgeText,
+  flyerText,
+  urgentBlock,
+  budgetBlock,
+  servingsBlock,
+  priorityBlock,
+} from './_prompt.js';
 import { normalizePlan } from './_plan.js';
 import { isMockEnabled, mockPlan } from './_mock.js';
 
@@ -30,7 +37,8 @@ export async function onRequestPost(context) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
-  const { fridge = [], flyerItems = [], budget = null, startDate } = body || {};
+  const { fridge = [], flyerItems = [], budget = null, startDate, servings, priority } =
+    body || {};
   if (!Array.isArray(fridge) || !Array.isArray(flyerItems)) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
@@ -58,6 +66,8 @@ ${urgentBlock(fridge)}
 【今日の特売品】
 ${flyerText(flyerItems)}
 ${budgetBlock(budget)}
+${servingsBlock(servings)}
+${priorityBlock(priority)}
 
 【組み立ての手順】
 この順番で考えてください。順番を入れ替えないでください。
@@ -107,6 +117,7 @@ ${budgetBlock(budget)}
       "carryOver": ["翌日に作り替える余り（無ければ空）"],
       "addOns": [{ "name": "この日だけ買い足すもの", "estimatedPrice": 概算円 }],
       "totalCost": 1人前の推定コスト円,
+      "calories": 1人前の推定カロリー(kcal、数値のみ),
       "cookingTime": "約20分"
     }
   ]

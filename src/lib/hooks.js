@@ -6,6 +6,7 @@ import { sanitizePlan } from './plan';
 import { getUserId, peekUserId, resetUserId } from './userId';
 import { newId } from './id';
 import { recipeFavoriteKey, sanitizeFavorites } from './favorites';
+import { DEFAULT_PREFERENCES, normalizePreferences } from './preferences';
 
 const isFilledString = (value) => typeof value === 'string' && value.trim() !== '';
 
@@ -99,6 +100,11 @@ export function useFavorites() {
   };
 
   return [favorites, toggle, ready];
+}
+
+// 提案の設定（何人分・何を優先するか）。提案と献立の両方に効く。
+export function usePreferences() {
+  return usePersistentValue('recipes:preferences', DEFAULT_PREFERENCES, normalizePreferences);
 }
 
 // 登録不要の匿名利用者ID。マウント時に発行または期限を先送りする。

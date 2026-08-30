@@ -136,3 +136,24 @@ describe('mockPlan', () => {
     plan.shoppingList.forEach((s) => expect(s.estimatedPrice).toBeGreaterThan(0));
   });
 });
+
+describe('mock calories', () => {
+  test('gives every mock recipe a calorie figure', () => {
+    // カロリー軸を選んだときに並びが変わることを画面で確認できる必要がある
+    mockRecipes(fridge, flyer).forEach((r) => {
+      expect(Number.isFinite(r.calories)).toBe(true);
+      expect(r.calories).toBeGreaterThan(0);
+    });
+  });
+
+  test('spreads the calories so sorting by them visibly reorders', () => {
+    const values = mockRecipes(fridge, flyer).map((r) => r.calories);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  test('gives every day of the mock plan a calorie figure', () => {
+    normalizePlan(mockPlan(fridge), '2026-08-30').days.forEach((d) => {
+      expect(Number.isFinite(d.calories)).toBe(true);
+    });
+  });
+});

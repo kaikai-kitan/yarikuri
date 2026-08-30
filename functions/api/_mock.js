@@ -22,6 +22,7 @@ const RECIPE_TEMPLATES = [
     description: 'フライパンひとつ、15分で',
     missingIngredients: [{ name: 'みりん', estimatedPrice: 198, buyAt: '' }],
     totalCost: 280,
+    calories: 620,
     cookingTime: '約15分',
   },
   {
@@ -30,6 +31,7 @@ const RECIPE_TEMPLATES = [
     description: '残り野菜をまとめて使い切る',
     missingIngredients: [],
     totalCost: 210,
+    calories: 180,
     cookingTime: '約25分',
   },
   {
@@ -38,6 +40,7 @@ const RECIPE_TEMPLATES = [
     description: 'レンジ加熱だけで作れる',
     missingIngredients: [{ name: 'レモン', estimatedPrice: 128, buyAt: 'スーパーA' }],
     totalCost: 240,
+    calories: 310,
     cookingTime: '約12分',
   },
 ];
@@ -94,6 +97,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['豚こま切れ', 'じゃがいも'],
     carryOver: ['玉ねぎ'],
     totalCost: 280,
+    calories: 640,
     cookingTime: '約15分',
   },
   {
@@ -104,6 +108,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['鶏ひき肉'],
     carryOver: ['鶏ひき肉'],
     totalCost: 230,
+    calories: 580,
     cookingTime: '約20分',
   },
   {
@@ -114,6 +119,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['豆腐'],
     carryOver: [],
     totalCost: 250,
+    calories: 720,
     cookingTime: '約20分',
   },
   {
@@ -124,6 +130,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['甘塩鮭'],
     carryOver: [],
     totalCost: 320,
+    calories: 430,
     cookingTime: '約25分',
   },
   {
@@ -134,6 +141,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['にんじん', 'カレールー'],
     carryOver: ['カレー'],
     totalCost: 260,
+    calories: 690,
     cookingTime: '約35分',
   },
   {
@@ -144,6 +152,7 @@ const PLAN_DAYS = [
     usedFromShopping: ['うどん'],
     carryOver: [],
     totalCost: 180,
+    calories: 610,
     cookingTime: '約10分',
   },
   {
@@ -154,6 +163,7 @@ const PLAN_DAYS = [
     usedFromShopping: [],
     carryOver: [],
     totalCost: 150,
+    calories: 260,
     cookingTime: '約15分',
   },
 ];

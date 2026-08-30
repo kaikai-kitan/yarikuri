@@ -1,6 +1,14 @@
 import { checkRateLimit } from './_ratelimit.js';
 import { json, callAnthropic, textOf, parseJsonArray } from './_ai.js';
-import { fridgeText, flyerText, urgentBlock, budgetBlock } from './_prompt.js';
+import {
+  fridgeText,
+  flyerText,
+  urgentBlock,
+  budgetBlock,
+  servingsBlock,
+  priorityBlock,
+} from './_prompt.js';
+import { normalizeRecipes, sortByPriority } from './_recipe.js';
 import { isMockEnabled, mockRecipes } from './_mock.js';
 
 export async function onRequestPost(context) {
@@ -24,13 +32,19 @@ export async function onRequestPost(context) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
-  const { fridge = [], flyerItems = [], budget = null } = body || {};
+  const { fridge = [], flyerItems = [], budget = null, servings, priority } = body || {};
   if (!Array.isArray(fridge) || !Array.isArray(flyerItems)) {
     return json({ error: 'リクエスト形式が不正です' }, 400);
   }
 
   if (isMockEnabled(env)) {
-    return json({ recipes: mockRecipes(fridge, flyerItems), mock: true });
+    return json({
+      recipes: sortByPriority(
+        normalizeRecipes(mockRecipes(fridge, flyerItems)),
+        priority
+      ),
+      mock: true,
+    });
   }
 
 
@@ -52,6 +66,8 @@ ${urgentBlock(fridge)}
 【今日の特売品】
 ${flyerText(flyerItems)}
 ${budgetBlock(budget)}
+${servingsBlock(servings)}
+${priorityBlock(priority)}
 
 以下のJSON配列形式のみで回答してください:
 [
@@ -63,6 +79,7 @@ ${budgetBlock(budget)}
     "usedFromDeals": ["使う特売品名"],
     "missingIngredients": [{ "name": "不足食材名", "estimatedPrice": 概算円, "buyAt": "購入先スーパー名(特売にあれば最安の店名を、なければ空文字)" }],
     "totalCost": 1人前の推定コスト円,
+    "calories": 1人前の推定カロリー(kcal、数値のみ),
     "cookingTime": "約20分"
   }
 ]
@@ -80,12 +97,13 @@ ${budgetBlock(budget)}
       return json({ error: 'AI提案サービスからエラーが返されました' }, 502);
     }
 
-    const recipes = parseJsonArray(textOf(await upstream.json()));
-    if (recipes === null) {
+    const parsed = parseJsonArray(textOf(await upstream.json()));
+    if (parsed === null) {
       return json({ error: '提案結果のフォーマットが不正です' }, 500);
     }
 
-    return json({ recipes });
+    // AIの並び順は当てにせず、選ばれた軸でこちらでも並べ直す。
+    return json({ recipes: sortByPriority(normalizeRecipes(parsed), priority) });
   } catch (e) {
     console.error('Recipe handler error:', e);
     return json({ error: e?.message || 'サーバーエラーが発生しました' }, 500);

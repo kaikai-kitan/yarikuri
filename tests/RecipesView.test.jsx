@@ -164,3 +164,69 @@ describe('RecipesView — the favorites tab', () => {
     expect(screen.getByRole('button', { name: '豚汁のお気に入りを解除' })).toBeInTheDocument();
   });
 });
+
+describe('RecipeResultsView — カロリー表示', () => {
+  test('shows the calories next to the cost', () => {
+    renderResults({ currentRecipes: [recipe({ calories: 480 })] });
+    expect(screen.getByText('480')).toBeInTheDocument();
+    expect(screen.getByText('kcal')).toBeInTheDocument();
+  });
+
+  test('says nothing when the calories are unknown', () => {
+    // 分からないものを 0kcal と出すと嘘になる
+    renderResults({ currentRecipes: [recipe({ calories: null })] });
+    expect(screen.queryByText('kcal')).not.toBeInTheDocument();
+  });
+
+  test('shows which settings the proposal was made with', () => {
+    renderResults({ preferences: { servings: 4, priority: 'calorie' } });
+    expect(screen.getByText('4人分／カロリー控えめ重視')).toBeInTheDocument();
+  });
+
+  test('says nothing about settings when there are none', () => {
+    renderResults({ preferences: null });
+    expect(screen.queryByText(/人分／/)).not.toBeInTheDocument();
+  });
+});
+
+describe('RecipesView — 提案の設定', () => {
+  test('lets the servings be changed from the recipe tab', () => {
+    renderFavorites({ preferences: { servings: 2, priority: 'cost' } });
+    expect(screen.getByText('2人分')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '人数を増やす' })).toBeInTheDocument();
+  });
+
+  test('leaves the settings out when none were passed', () => {
+    renderFavorites();
+    expect(screen.queryByRole('button', { name: '人数を増やす' })).not.toBeInTheDocument();
+  });
+});
+
+describe('RecipeResultsView — 並び順の根拠', () => {
+  test('says the list is ordered by value when cost is the axis', () => {
+    renderResults({ preferences: { servings: 2, priority: 'cost' } });
+    expect(screen.getByText('#1 BEST VALUE')).toBeInTheDocument();
+  });
+
+  test('says the list is ordered by calories when that is the axis', () => {
+    // 軸を変えたのに「BEST VALUE」のままだと、並び順の説明として嘘になる
+    renderResults({ preferences: { servings: 2, priority: 'calorie' } });
+    expect(screen.getByText('#1 LOW CALORIE')).toBeInTheDocument();
+  });
+
+  test('says the list is ordered by time when that is the axis', () => {
+    renderResults({ preferences: { servings: 2, priority: 'time' } });
+    expect(screen.getByText('#1 QUICKEST')).toBeInTheDocument();
+  });
+
+  test('falls back to value when there are no settings', () => {
+    renderResults({ preferences: null });
+    expect(screen.getByText('#1 BEST VALUE')).toBeInTheDocument();
+  });
+
+  test('labels the calorie column as calories, not as a serving', () => {
+    // 「1人前」が金額とカロリーの両方に付くと読みづらい
+    renderResults({ currentRecipes: [recipe({ calories: 480 })] });
+    expect(screen.getByText('カロリー')).toBeInTheDocument();
+  });
+});

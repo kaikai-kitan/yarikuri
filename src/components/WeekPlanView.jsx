@@ -212,7 +212,9 @@ export default function WeekPlanView({
 
               <div className="flex items-center justify-between gap-3 mt-1.5">
                 <span className="text-[11px]" style={{ color: COLORS.inkSoft }}>
-                  1人前 {yen(d.totalCost)}・{d.cookingTime}
+                  1人前 {yen(d.totalCost)}
+                  {d.calories != null && `・${d.calories}kcal`}
+                  ・{d.cookingTime}
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
                 {links[i] === undefined && (

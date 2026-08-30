@@ -67,7 +67,7 @@ export default function AppNav() {
     <>
       <nav
         aria-label="メインナビゲーション"
-        className="absolute bottom-0 left-0 right-0 z-40"
+        className="shrink-0 relative z-40"
         style={{
           background: COLORS.paper,
           borderTop: `1px solid ${COLORS.border}`,
